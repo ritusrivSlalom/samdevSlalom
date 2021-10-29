@@ -1,0 +1,6 @@
+pytest
+pytest-mock
+boto3
+json
+logging
+sys
