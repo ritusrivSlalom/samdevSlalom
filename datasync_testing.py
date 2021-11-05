@@ -135,21 +135,9 @@ def generateInsertData():
 # read the table
 def readDB():
     dbConnection = getDBConnection()
-    try:
-        cur = dbConnection.cursor()
-        cur.execute("select * from gh_bip_data_copy_test")
-        rows = cur.fetchall()
-        # for row in rows:
-        #     print(f"{row[0]} {row[1]} {row[2]}")
-    except Exception as err:
-        logger.error(f"Unable to read the data from the database. Exception: {err}")
-        sys.exit(1)
-    finally:
-        try:
-            dbConnection.close()
-        except:
-            pass
-    return rows
+    cur = dbConnection.cursor()
+    readQuery="""SELECT * FROM gh_bip_data_copy_test WHERE sourcename = '%s' AND destinationname = '%s' ORDER BY "id" DESC LIMIT 1""" % (sampleAPIJSON["sourceLocation"], sampleAPIJSON["destinationLocation"])
+    cur.execute(readQuery)
 
 
 # get the last primary key
