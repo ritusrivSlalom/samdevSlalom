@@ -222,3 +222,5 @@ def handler(event, context):
         logger.error(f"Unable to execute the fucntion. Exception : {err}")
         raise err
         sys.exit(1)
+
+
