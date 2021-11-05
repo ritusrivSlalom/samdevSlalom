@@ -6,11 +6,8 @@ import os
 import json
 import psycopg2
 import boto3
-import base64
-from botocore.exceptions import ClientError
 import logging
 from datetime import datetime
-import time
 
 region_name = os.environ['AWS_REGION']
 
@@ -23,9 +20,30 @@ formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datef
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-sampleAPIJSON = {"sourceLocation": "/ghdevhome/binfs/210303_A01021_0222_BHY2V2DSXYSS/",
-                 "destinationLocation": "bip-analysis-bucket",
-                 "taskname": "GH_BIP_TASK"}
+
+def return_success(taskname, status, err):
+    return {
+        'statusCode': 200,
+        'body': json.dumps({
+            "Task_name": f"{taskname}",
+            "Status": f"{status}",
+            "ERROR": f"{err}"
+        })
+    }
+
+
+def return_error(taskname, status, err):
+    return {
+        'statusCode': 500,
+        'body': json.dumps({
+            "Task_name": f"{taskname}",
+            "Status": f"{status}",
+            "ERROR": f"{err}"
+        })
+    }
+
+
+TASKNAME = "GH_BIP_TASK"
 
 
 # Connect to AWS boto3 Client
@@ -43,6 +61,7 @@ def aws_connect_client(service):
         conn_client = None
     return conn_client, REGION
 
+
 def getAccountID():
     conn, _ = aws_connect_client("sts")
     try:
@@ -51,6 +70,7 @@ def getAccountID():
         logger.error(f"Unable to get Account ID. Exception: {err}")
         sys.exit(1)
     return account_id
+
 
 # Make AWS API call to AWS SSM Params
 def get_parameter(name):
@@ -101,15 +121,12 @@ def getDBConnection():
 
 # generate values for insert query
 def generateInsertData():
-    sourceVal = [x.strip() for x in sampleAPIJSON["sourceLocation"].split('/') if x]
-    taskName = f"{sampleAPIJSON['taskname']}_{sourceVal.pop()}"
     getDate = datetime.now()
     getTimestamp = getDate.strftime("%m-%d-%Y %H:%M:%S")
-    sourceEndPoint = sampleAPIJSON["sourceLocation"]
-    destinationEndpoint = sampleAPIJSON["destinationLocation"]
+    sourceEndPoint = sourceLocation
+    destinationEndpoint = destinationLocation
     taskStatus = "TASK_CREATION"
-    # print(taskName,getTimestamp,sourceEndPoint,destinationEndpoint,taskStatus)
-    return taskName, getTimestamp, sourceEndPoint, destinationEndpoint, taskStatus
+    return gtaskName, getTimestamp, sourceEndPoint, destinationEndpoint, taskStatus
 
 
 # def createTable():
@@ -134,18 +151,39 @@ def generateInsertData():
 
 # read the table
 def readDB():
+    global readRows
+    # Need to read IDs in order to generate the ID pimary key
+    global readIDRows
+
     dbConnection = getDBConnection()
-    cur = dbConnection.cursor()
-    readQuery="""SELECT * FROM gh_bip_data_copy_test WHERE sourcename = '%s' AND destinationname = '%s' ORDER BY "id" DESC LIMIT 1""" % (sampleAPIJSON["sourceLocation"], sampleAPIJSON["destinationLocation"])
-    cur.execute(readQuery)
+    try:
+        cur = dbConnection.cursor()
+        readQuery = """SELECT id,status FROM gh_bip_data_copy_test WHERE sourcename = '%s' AND destinationname = '%s' ORDER BY "id" DESC LIMIT 1""" % (
+        sourceLocation, destinationLocation)
+
+        readIDQuery = """SELECT max(id) FROM gh_bip_data_copy_test"""
+        cur.execute(readQuery)
+        readRows = cur.fetchall()
+        cur.execute(readIDQuery)
+        readIDRows = cur.fetchall()
+    except Exception as err:
+        logger.error(f"Unable to read the data from the database. Exception: {err}")
+        sys.exit(1)
+    finally:
+        try:
+            dbConnection.close()
+        except:
+            pass
+    return readRows, readIDRows
 
 
 # get the last primary key
 def getLastPkey():
-    rows = readDB()
-    getLastPKey = [row[0] for row in rows]
+    getLastPKey = [row[0] for row in readIDRows]
+    print(getLastPKey)
+    print(readIDRows)
     if not getLastPKey:
-        logger.info("The ID row is empty hence set as 0")
+        print("The ID row is empty hence set as 0")
         lastVal = 0
     else:
         lastVal = getLastPKey.pop()
@@ -159,6 +197,7 @@ def instertDB():
     try:
         cur = dbConnection.cursor()
         task_name, created_on, sourcename, destinationname, status = generateInsertData()
+        # generate the primary key
         getLPK = getLastPkey()
         id = getLPK + 1
         cur.execute("""
@@ -178,37 +217,44 @@ def instertDB():
 
 # condition to check the source and destination locations are present in the database.
 def conditionToCheckSD():
-    rows = readDB()
-    sourceRow = [row[4] for row in rows]
-    destinationRow = [row[5] for row in rows]
-    taskStatusRow = [row[6] for row in rows]
-
-    if sampleAPIJSON["sourceLocation"] in sourceRow and sampleAPIJSON["destinationLocation"] in destinationRow:
-        logger.info("both source and destionation is present already. Checking the taskStatus")
-        logger.info(taskStatusRow)
-        loopStatus = True
-        while loopStatus:
-            rows = readDB()
-            taskStatusRow = [row[6] for row in rows]
-            if 'EXECUTION_Completed' in taskStatusRow.pop():
-                logger.info("The pervious task is completed. Inserting new row")
-                instertDB()
-                break
-            else:
-                time.sleep(30)
-                logger.info("Wait for pervious task to complete.")
-    else:
-        logger.info("both source and destionation not present in the table")
+    taskStatusRow, _ = readDB()
+    if 'EXECUTION_Completed' in taskStatusRow:
+        logger.info("The pervious task is completed. Inserting new row")
         instertDB()
+    else:
+        logger.error(f"The source and destination is already present and task is : {taskStatusRow}")
+        return return_error(gtaskName, "FAILED", "The source and destination is already present/task is not completed")
+
+    if not taskStatusRow:
+        logger.info("The source and destination is not present in the table hence Inserting new row")
+        instertDB()
+        return return_success(gtaskName, "SUCCESS", "None")
 
 
 # Connect to PostgreSQL database and insert sensor data record
 def handler(event, context):
+    global sourceLocation
+    global destinationLocation
+    global gtaskName
+
+    try:
+        sourceLocation = event['queryStringParameters']['src']
+        destinationLocation = event['queryStringParameters']['dest']
+        if (len(sourceLocation) == 0 or len(destinationLocation) == 0):
+            logger.error("Valid Parameters not defined!")
+            return return_error(sourceLocation, "FAILED", "Valid Parameters not defined for src/dest!")
+        else:
+            return return_success(sourceLocation, "SUCCESS", "None")
+    except Exception as e:
+        logger.error(f"Missing parameters. Exception : {e}")
+        return return_error(sourceLocation, "FAILED", "Missing parameters")
+
+    sourceVal = [x.strip() for x in sourceLocation.split('/') if x]
+    gtaskName = f"{TASKNAME}_{sourceVal.pop()}"
+
     try:
         conditionToCheckSD()
     except Exception as err:
         logger.error(f"Unable to execute the fucntion. Exception : {err}")
         raise err
         sys.exit(1)
-
-
