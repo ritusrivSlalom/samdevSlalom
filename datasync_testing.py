@@ -255,6 +255,6 @@ def handler(event, context):
     try:
         conditionToCheckSD()
     except Exception as err:
-        print(f"Unable to execute the fucntion. Exception : {err}")
+        print(f"Unable to execute the function. Exception : {err}")
         raise err
         sys.exit(1)
