@@ -57,7 +57,7 @@ def aws_connect_client(service):
         # Connect the resource
         conn_client = session.client(service, REGION)
     except Exception as e:
-        logger.error('Could not connect to region: %s and resources: %s , Exception: %s\n' % (REGION, service, e))
+        print('Could not connect to region: %s and resources: %s , Exception: %s\n' % (REGION, service, e))
         conn_client = None
     return conn_client, REGION
 
@@ -67,7 +67,7 @@ def getAccountID():
     try:
         account_id = conn.get_caller_identity()["Account"]
     except Exception as err:
-        logger.error(f"Unable to get Account ID. Exception: {err}")
+        print(f"Unable to get Account ID. Exception: {err}")
         sys.exit(1)
     return account_id
 
@@ -78,19 +78,19 @@ def get_parameter(name):
         conn, _ = aws_connect_client("ssm")
         parameter = conn.get_parameter(Name=name)
     except Exception as err:
-        logger.error(f"Unable to get the params from SSM. Exception - {err}")
+        print(f"Unable to get the params from SSM. Exception - {err}")
         sys.exit(1)
     return parameter['Parameter']['Value']
 
 
 def getDBCredentails():
-    logger.info("Getting DB parameters...")
+    print("Getting DB parameters...")
     db_endpoint = get_parameter("/gh-bip/" + region_name + "/db_endpoint")
     db_user = get_parameter("/gh-bip/" + region_name + "/db_username")
 
     try:
         # Create a Secrets Manager client
-        logger.info("getting secrets")
+        print("getting secrets")
         conn, _ = aws_connect_client("secretsmanager")
         get_secret_value_response = conn.get_secret_value(SecretId='bip_db_pass')
 
@@ -99,7 +99,7 @@ def getDBCredentails():
         if 'SecretString' in get_secret_value_response:
             db_password = json.loads(get_secret_value_response['SecretString'])
     except Exception as err:
-        logger.error(f"Unable to get the db credentails from SecretManger. Exception - {err}")
+        print(f"Unable to get the db credentails from SecretManger. Exception - {err}")
         sys.exit(1)
     return db_endpoint, db_user, db_password['bip_db_pass']
 
@@ -111,9 +111,9 @@ def getDBConnection():
                                 password=db_password)
         # conn = psycopg2.connect(host='localhost', port=5432, dbname='test')
         conn.autocommit = True
-        logger.info("connected ")
+        print("connected ")
     except Exception as err:
-        logger.error(f"Unable to connnct the database. Exception {err}")
+        print(f"Unable to connnct the database. Exception {err}")
         sys.exit(1)
 
     return conn
@@ -167,7 +167,7 @@ def readDB():
         cur.execute(readIDQuery)
         readIDRows = cur.fetchall()
     except Exception as err:
-        logger.error(f"Unable to read the data from the database. Exception: {err}")
+        print(f"Unable to read the data from the database. Exception: {err}")
         sys.exit(1)
     finally:
         try:
@@ -204,9 +204,9 @@ def instertDB():
         INSERT INTO gh_bip_data_copy_test (id,task_name,sourcename,destinationname,status,created_on)
         VALUES (%s, %s,%s, %s, %s, %s);
         """, (id, task_name, sourcename, destinationname, status, created_on))
-        logger.info('Values inserted to PostgreSQL')
+        print('Values inserted to PostgreSQL')
     except Exception as err:
-        logger.error(f"Unable to insert the data into the database. Exception: {err}")
+        print(f"Unable to insert the data into the database. Exception: {err}")
         sys.exit(1)
     finally:
         try:
@@ -219,14 +219,14 @@ def instertDB():
 def conditionToCheckSD():
     taskStatusRow, _ = readDB()
     if 'EXECUTION_Completed' in taskStatusRow:
-        logger.info("The pervious task is completed. Inserting new row")
+        print("The pervious task is completed. Inserting new row")
         instertDB()
     else:
-        logger.error(f"The source and destination is already present and task is : {taskStatusRow}")
+        print(f"The source and destination is already present and task is : {taskStatusRow}")
         return return_error(gtaskName, "FAILED", "The source and destination is already present/task is not completed")
 
     if not taskStatusRow:
-        logger.info("The source and destination is not present in the table hence Inserting new row")
+        print("The source and destination is not present in the table hence Inserting new row")
         instertDB()
         return return_success(gtaskName, "SUCCESS", "None")
 
@@ -241,12 +241,12 @@ def handler(event, context):
         sourceLocation = event['queryStringParameters']['src']
         destinationLocation = event['queryStringParameters']['dest']
         if (len(sourceLocation) == 0 or len(destinationLocation) == 0):
-            logger.error("Valid Parameters not defined!")
+            print("Valid Parameters not defined!")
             return return_error(sourceLocation, "FAILED", "Valid Parameters not defined for src/dest!")
         else:
             return return_success(sourceLocation, "SUCCESS", "None")
     except Exception as e:
-        logger.error(f"Missing parameters. Exception : {e}")
+        print(f"Missing parameters. Exception : {e}")
         return return_error(sourceLocation, "FAILED", "Missing parameters")
 
     sourceVal = [x.strip() for x in sourceLocation.split('/') if x]
@@ -255,6 +255,6 @@ def handler(event, context):
     try:
         conditionToCheckSD()
     except Exception as err:
-        logger.error(f"Unable to execute the fucntion. Exception : {err}")
+        print(f"Unable to execute the fucntion. Exception : {err}")
         raise err
         sys.exit(1)
