@@ -53,27 +53,35 @@ def lambda_handler(event, context):
     print("Inside cronFunction..")
     print(event)
     try:
-        ## Check db if any row with status  "TASK_CREATION" 
-        # If exists:
-        #   get task_name, src and dest
-        #    update task status ""TASK_INPROGRESS "
-        #  list_tasks with filter name
-        #  If task exists and status is 'AVAILABLE'
-        #       check if any execution of task  "SUCCESS"|'ERROR'      
-        #           exec_id, status = start_exec()
-        #        check if DB task execution status in 'QUEUED'|'LAUNCHING'|'PREPARING'|'TRANSFERRING'|'VERIFYING'
-        #           Exestatus = describe_execution(task_execution_arn); 
-        #            update status in DB
-        # If task exists and status is in 'CREATING'|'QUEUED'|'RUNNING'
-        #       nothing      
-        # else
-        #       create_task()
-        #       update task status ""TASK_INPROGRESS "
-        #       wait 30 secs
-        #       describe_task(task_name)
-        #        again update status in db
-        #       exec_id, status = start_exec()
-        #
+        Check db if any row with status != 'COMPLETED/CANCEL'
+         If exists:
+               get task_name, src and dest, status
+               if status == 'TASK_CREATION'
+                       If task exists and query task status is 'AVAILABLE' 
+                        #           exec_id, status = start_exec()
+                                    update db status as 'EXEC_INPROGRESS'     
+                       else ## If task doesnt exists
+                        #       create_task()
+                        #       wait 30 secs
+                        #       describe_task(task_name)
+                        #       if task status is 'AVAILABLE'
+                        #       then exec_id, status = start_exec()
+                                     update db status as 'EXEC_INPROGRESS' 
+                elseif status == 'QUEUED'|'LAUNCHING'|'PREPARING'|'TRANSFERRING'|'VERIFYING'|'EXEC_INPROGRESS'
+                        #           Exestatus = describe_execution(task_execution_arn); 
+                        #           update status in DB
+                        #           If status == 'ERROR'
+                                        cloudwatch Alarm
+                elseif status == 'SUCCESS'|'ERROR'      
+                        #           exec_id, status = start_exec()
+                                    update db status as 'EXEC_INPROGRESS' 
+                                    If status == 'ERROR'
+                                        cloudwatch Alarm
+                else:
+                    do nothing
+
+ else:
+ 	do nothing
     except Exception as e:
         print("Missing parameters")
         print(str(e))
