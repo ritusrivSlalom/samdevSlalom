@@ -88,6 +88,28 @@ def create_task():
     except Exception as e:
         print(f"Missing parameters. Exception : {e}")
 
+def publish_message(error_msg):
+    sns_arn = os.environ['snsARN']  # Getting the SNS Topic ARN passed in by the environment variables.
+    snsclient = boto3.client('sns')
+    lambda_func_name = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+    try:
+        message = ""
+        message += "\nLambda error  summary" + "\n\n"
+        message += "##########################################################\n"
+        message += "# LogGroup Name:- " + os.environ['AWS_LAMBDA_LOG_GROUP_NAME'] + "\n"
+        message += "# LogStream:- " + os.environ['AWS_LAMBDA_LOG_STREAM_NAME'] + "\n"
+        message += "# Log Message:- " + "\n"
+        message += "# \t\t" + str(error_msg.split("\n")) + "\n"
+        message += "##########################################################\n"
+	accntid=getAccountID()
+        # Sending the notification...
+        snsclient.publish(
+            TargetArn="arn:aws:sns:"+REGION+":"+accntid+":gh-bip-notify",
+            Subject=f'Execution error for Lambda - {lambda_func_name[3]}',
+            Message=message
+        )
+    except ClientError as e:
+        logger.error("An error occured: %s" % e)
 
 
 
