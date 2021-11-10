@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Resources:
+
+  CopyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: v1
+      Models:
+         RequestClass :
+           {
+            "title": "RequestClass",
+            "type": "object",
+            "properties": {
+                      "src": { "type": "string" },
+                      "dest": { "type": "string" }   
+                    }          
+            }   
+      Auth:
+        #ApiKeyRequired: true
+        DefaultAuthorizer: BIPLambdaRequestAuthorizer
+        Authorizers: 
+          BIPLambdaRequestAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !GetAtt BIPLambdaRequestAuthorizer.Arn
+            Identity:
+              Headers:
+                - Authorization
+          
+  COPYFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'bip_api_copy'
+      Handler: handler.handler
+      Runtime: python3.6
+      CodeUri: ./copyfunc
+      Events:
+        CopyAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CopyApi
+            Path: /copyapi
+            Method: POST
+            RequestModel: 
+              Model: RequestClass # REQUIRED; must match the name of a model defined in the Models property of the AWS::Serverless::API
+              Required: true # OPTIONAL; boolean
+            # RequestParameters:
+            #   - method.request.querystring.src:
+            #       Required: true
+            #   - method.request.querystring.dest:
+            #       Required: true
+      Policies:
+      # Give the Lambda service access to poll your DynamoDB Stream
+      - AWSLambdaVPCAccessExecutionRole
+      - SecretsManagerReadWrite
+      - AmazonSSMFullAccess
+      Timeout: 300  
+      VpcConfig:
+        SubnetIds: 
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id1:1}}'
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id2:1}}'
+        SecurityGroupIds:
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/default_securitygroupid:1}}'
+
+  GetStatusFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'bip_api_copystatus'
+      Handler: handler.lambda_handler
+      Runtime: python3.6
+      CodeUri: ./getstatus
+      Events:
+        StatusAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CopyApi
+            Path: /copyapi/getStatus
+            Method: GET
+            RequestParameters:
+              - method.request.querystring.task_name:
+                  Required: true
+              
+            
+  BIPLambdaRequestAuthorizer:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'bip_api_authorizer'
+      CodeUri: ./authorizer
+      Handler: copyAuthorizer.authorizer
+      Runtime: python3.7
+      Timeout: 120
+      Policies:
+      # Give the Lambda service access to poll your DynamoDB Stream
+      - AmazonS3ReadOnlyAccess
+      - SecretsManagerReadWrite
+
+  FunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: FunctionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DeleteNetworkInterface'
+                Resource: '*'
+Outputs:
+  Region:
+    Description: "Region"
+    Value: !Ref AWS::Region
+
+  ApiId:
+    Description: "API ID"
+    Value: !Ref CopyApi
+
+  ApiUrl:
+    Description: "Copy API endpoint URL for v1 environment"
+    Value: !Sub 'https://${CopyApi}.execute-api.${AWS::Region}.amazonaws.com/v1/copyapi'
+  
+  StatusApiUrl:
+    Description: "Get Status API endpoint URL for v1 environment"
+    Value: !Sub 'https://${CopyApi}.execute-api.${AWS::Region}.amazonaws.com/v1//copyapi/getStatus'
