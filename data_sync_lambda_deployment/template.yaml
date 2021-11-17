@@ -19,7 +19,15 @@ Resources:
       Runtime: python3.9
       CodeUri: datasync-lambda/
       MemorySize: 128
-      
+
+  copyapi:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: copyapi.handler
+      Runtime: python3.9
+      CodeUri: copyapi/
+      MemorySize: 128
+ 
 
 
 
