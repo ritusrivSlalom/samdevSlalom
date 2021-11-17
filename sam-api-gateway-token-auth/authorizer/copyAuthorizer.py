@@ -11,7 +11,7 @@ import json
 
 region_name =  os.environ['AWS_REGION']
 secret_name = "gh-key-name"
-bucket_name = ""
+bucket_name = "gh-pcluster-automation-bucket"
 pem_key = "bipkey.pem"
 pub_key = "bipkey.pub"
 
@@ -37,19 +37,25 @@ def read_secrets():
         print("Unable to fetch secrets")
         print(str(e))
         return 1
-
+print("before secret call")
+(iprange,auth_key) = read_secrets()
+print("after secret call")
 def validate_ip(Callerip, iprange):
     print("Validating IP..."+Callerip)
     print("WhiteList IP Range : "+iprange)
     for ipsub in iprange.split(","):
         net = ip_network(ipsub)
+        print("cidr range...")
+        print(net)
+        print("user ip")
         print(Callerip)
         if (ip_address(Callerip) in net):
             print("Valid IP : "+Callerip)
             return 0
         else:
             print("Not Authorized IP Address")
-            return 1
+            ret = 1
+    return ret
 
 
 
@@ -76,22 +82,22 @@ def authorizer(event, context):
 
     Callerip = event['requestContext']['identity']['sourceIp']
     ## Read from S3 s3://gh-pcluster-automation-bucket-dev/mykey.pem
-    try:
-        (iprange,auth_key) = read_secrets()
-    except Exception as e:
-        print("Unable to retrieve Secrets!")
-        print(str(e))
-        return generateAuthResponse('BipUser', 'Deny', methodArn)
+    # try:
+    #     (iprange,auth_key) = read_secrets()
+    # except Exception as e:
+    #     print("Unable to retrieve Secrets!")
+    #     print(str(e))
+    #     return generateAuthResponse('BipUser', 'Deny', methodArn)
     ## Get required Bucket which holds key to decode
     s3_client = boto3.client('s3')
-    response = s3_client.list_buckets()
-    for bucket in response['Buckets']:
-      if bucket['Name'].startswith( 'gh-pcluster-automation-bucket' ):
-          print(bucket['Name'])
-          bucket_name = bucket['Name']
-    if len(bucket_name) == 0 :
-        print("Automation Bucket does not exists")
-        return generateAuthResponse('BipUser', 'Deny', methodArn)
+    # response = s3_client.list_buckets()
+    # for bucket in response['Buckets']:
+    #   if bucket['Name'].startswith( 'gh-pcluster-automation-bucket' ):
+    #       print(bucket['Name'])
+    #       bucket_name = bucket['Name']
+    # if len(bucket_name) == 0 :
+    #     print("Automation Bucket does not exists")
+    #     return generateAuthResponse('BipUser', 'Deny', methodArn)
 
     # s3_clientobj = s3_client.get_object(Bucket=bucket_name, Key=pem_key)
     # private_key  =   s3_clientobj['Body'].read()
@@ -107,12 +113,14 @@ def authorizer(event, context):
         return generateAuthResponse('BipUser', 'Deny', methodArn)
 
     try: 
+        print("encoded token")
+        print(encoded)
         decoded = jwt.decode(encoded, public_key, algorithms=["RS256"])
-        print("DECODE : "+str(decoded))
-        enc = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ1c2VyX2lkIjoxfQ.XGnWq65beOTqmTkyfIT7HV6m8QL9LsEZ9TNnuzIduRM_7ic2JHwT7TrqoV7DyPlaSDxnnn56snCA2baPGa9sUPBa_z3YHEriibhqWPdIiyl-Zi7yzi0PRyl0gjHo58A0MCXYRH5tJbPQ97359qzh1efQiJdYxQQBCJl6fE0WfXKOs6tWxuL5C4pFsY07Tf3qjZdhCHlLF0YR9BLc2QJV5GF6KaJVJ5_si21ykM7wbpvq0AY4QyzSq3FTr0Voa1gx6le--n9xcLl-u0qqWKmQZ9WT5M5mXimvCUrpNqwkoCLHiS3m3MZ_Uwg6XxBVBQzF1j7ARVN_RuRvzV7bcTnAUg"
-        dec = jwt.decode(enc, public_key, algorithms=["RS256"])
-        print ("new dec ")
-        print(dec)
+        # print("DECODE : "+str(decoded))
+        # enc = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJleHAiOjE2MzY2ODQ5MTAsImlhdCI6MTYzNjY3ODkxMCwiaXNzIjoiZ2gtZ2F0ZXdheSIsImFwaV9rZXkiOiIzYzI4YjQ1Yi0xODFkLTQzYWQtYTU4Yi1mNmVkOTA3OGM4M2UxLTEyMzgifQ.AF9g0-wWdoTxLr-35oFkKBYUwTYmBSJCBp0bxlztW9jMDKXvVdCXqGbk8TTb5KMaLdjW4tcs5qxlO6bmUYb8xEQ9u-0dyRSh_oXXqROrqXQBZJi3dfLN6gapQbXqkrtO8XAYg1YawPE2YRkhby4zGru6OAYZBZc2m1g346TUJc1577fBqiZirhaSqoTAMIFKICO_kzSIF3LL5lQozLb-VKIszCo2D50BIN0_BeStzoORXz4EY3GKRM5ctJxO-SkkQgO-z7YOPYooTHhlptB3pZ7gpnanPAJkShqnXaj7QJ2eyO8xfw81C9gdbCK7LIBzEEF4-m5d0dTzcnj12hPL-g"
+        # dec = jwt.decode(enc, public_key, algorithms=["RS256"])
+        # print ("new dec ")
+        # print(dec)
         request_auth_key = decoded['auth_key']
         try:
             if request_auth_key == auth_key:

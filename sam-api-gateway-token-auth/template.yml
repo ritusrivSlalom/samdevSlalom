@@ -6,6 +6,7 @@ Resources:
   CopyApi:
     Type: AWS::Serverless::Api
     Properties:
+      Name: gh-bip-apis
       StageName: v1
       Models:
          RequestClass :
@@ -40,18 +41,12 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref CopyApi
-            Path: /copyapi
+            Path: /copy #copy
             Method: POST
             RequestModel: 
               Model: RequestClass # REQUIRED; must match the name of a model defined in the Models property of the AWS::Serverless::API
               Required: true # OPTIONAL; boolean
-            # RequestParameters:
-            #   - method.request.querystring.src:
-            #       Required: true
-            #   - method.request.querystring.dest:
-            #       Required: true
       Policies:
-      # Give the Lambda service access to poll your DynamoDB Stream
       - AWSLambdaVPCAccessExecutionRole
       - SecretsManagerReadWrite
       - AmazonSSMFullAccess
@@ -70,18 +65,59 @@ Resources:
       Handler: handler.lambda_handler
       Runtime: python3.6
       CodeUri: ./getstatus
+      Policies:
+      - AWSLambdaVPCAccessExecutionRole
+      - SecretsManagerReadWrite
+      - AmazonSSMFullAccess
       Events:
         StatusAPI:
           Type: Api
           Properties:
             RestApiId: !Ref CopyApi
-            Path: /copyapi/getStatus
+            Path: /copy/status
             Method: GET
             RequestParameters:
               - method.request.querystring.task_name:
                   Required: true
+      Timeout: 300  
+      VpcConfig:
+        SubnetIds: 
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id1:1}}'
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id2:1}}'
+        SecurityGroupIds:
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/default_securitygroupid:1}}'
               
-            
+  CancelTaskFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'bip_api_cancelcopy'
+      Handler: handler.lambda_handler
+      Runtime: python3.6
+      CodeUri: ./cancelcopy
+      Policies:
+      - AWSLambdaVPCAccessExecutionRole
+      - SecretsManagerReadWrite
+      - AmazonSSMFullAccess
+      Events:
+        StatusAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CopyApi
+            Path: /copy/status
+            Method: PUT
+            RequestParameters:
+              - method.request.querystring.task_name:
+                  Required: true
+              - method.request.querystring.status:
+                  Required: true
+      Timeout: 300  
+      VpcConfig:
+        SubnetIds: 
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id1:1}}'
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id2:1}}'
+        SecurityGroupIds:
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/default_securitygroupid:1}}'
+                       
   BIPLambdaRequestAuthorizer:
     Type: 'AWS::Serverless::Function'
     Properties:
@@ -91,9 +127,34 @@ Resources:
       Runtime: python3.7
       Timeout: 120
       Policies:
-      # Give the Lambda service access to poll your DynamoDB Stream
       - AmazonS3ReadOnlyAccess
       - SecretsManagerReadWrite
+
+  SchedulerFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'bip_copy_scheduler'
+      Handler: handler.handler
+      Runtime: python3.6
+      CodeUri: ./cronfunction
+      Policies:
+      - AWSLambdaVPCAccessExecutionRole
+      - SecretsManagerReadWrite
+      - AWSDataSyncFullAccess
+      - AmazonSSMFullAccess
+      Events:
+        InvocationLevel:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0/10 * * * ? *)
+      Timeout: 600  
+      VpcConfig:
+        SubnetIds: 
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id1:1}}'
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id2:1}}'
+        SecurityGroupIds:
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/default_securitygroupid:1}}'
+                       
 
   FunctionRole:
     Type: 'AWS::IAM::Role'
@@ -132,8 +193,12 @@ Outputs:
 
   ApiUrl:
     Description: "Copy API endpoint URL for v1 environment"
-    Value: !Sub 'https://${CopyApi}.execute-api.${AWS::Region}.amazonaws.com/v1/copyapi'
+    Value: !Sub 'https://${CopyApi}.execute-api.${AWS::Region}.amazonaws.com/v1/copy'
   
   StatusApiUrl:
     Description: "Get Status API endpoint URL for v1 environment"
-    Value: !Sub 'https://${CopyApi}.execute-api.${AWS::Region}.amazonaws.com/v1//copyapi/getStatus'
+    Value: !Sub 'https://${CopyApi}.execute-api.${AWS::Region}.amazonaws.com/v1/copy/status'
+
+  ControllerApiUrl:
+    Description: "Control Copy status API endpoint URL for v1 environment"
+    Value: !Sub 'https://${CopyApi}.execute-api.${AWS::Region}.amazonaws.com/v1/copy/status'
