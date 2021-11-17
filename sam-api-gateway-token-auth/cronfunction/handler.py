@@ -397,3 +397,4 @@ def handler(event, context):
             print(f"Unable to close DB connection. Exception : {err}")
             raise err
             sys.exit(1)
+            
