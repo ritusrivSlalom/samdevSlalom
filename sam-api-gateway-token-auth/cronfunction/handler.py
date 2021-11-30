@@ -382,6 +382,16 @@ def handler(event, context):
                 update_db_status(task_name, response["Status"])
                 if response["Status"] == 'ERROR':
                     publish_message("Error while data copy in task "+task_name+" and Execution Id : "+exec_id)
+                else:
+                    # See if copy_complete.txt is in destination
+                        # Construct the destination S3 bucket+folders via new construct_destination(task_name, src, dest)   # return destination_endpoint = dest's bucket + src's folders
+                        # find_copy_complete(destination_endpoint)  # return copy_complete = true or false
+                        # if (copy_complete):
+                        #   if ( response["EstimatedFilesToTransfer"] >= response["FilesTransferred"]):  # 2nd stage: either all files transferred or there's more
+                        #       if ( response["EstimatedBytesToTransfer"] <= response["BytesTransferred"] || response["EstimatedBytesToTransfer"] == 0  ):  # 3rd stage:  No more to copy over
+                        #           update_db_status(task_name, 'SUCCESS')  # <= what should be the final status? 'DONE' ? 
+                        #   (All else cases are just to let above cron logic cycle thru again)
+                    pass
     except Exception as err:
         print(f"Unable to execute the fucntion. Exception : {err}")
         publish_message("Error in copy scheduler: "+err)
