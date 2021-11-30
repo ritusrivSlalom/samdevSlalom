@@ -109,6 +109,57 @@ def alterDB():
         if dbConnection is not None:
             dbConnection.close()
 
+def updateDBOneTimeCopy(task_name,status):
+    dbConnection = getDBConnection()
+    try:
+        cur = dbConnection.cursor()
+        if status.upper() == "SUCCESS":
+            updateQuery = """UPDATE gh_bip_data_copy SET one_time_copy = TRUE, status = 'COMPLETED' WHERE task_name = '%s';""" %(task_name)
+            cur.execute(updateQuery)
+            print("Updated teh DB status : COMPLETED and one_time_copy :TRUE")
+            update_rows = cur.rowcount
+            # # Commit the changes to the database
+            dbConnection.commit()
+            # Close communication with the PostgreSQL database
+        else:
+            pass
+        cur.close()
+    except Exception as err:
+        print(f"Unable to update the one_time_copy status in the database. Exception: {err}")
+    finally:
+        if dbConnection is not None:
+            dbConnection.close()
+
+### Note: this function need to be updated in event lambda
+def update_db_status(task_name, newstatus):
+    dbConnection = getDBConnection()
+    try:
+        cur = dbConnection.cursor()
+        readQuery = """SELECT status, one_time_copy FROM gh_bip_data_copy_test WHERE task_name = '%s' ORDER BY "id" DESC LIMIT 1""" % (task_name)
+        print(readQuery)
+        cur.execute(readQuery)
+        rows = cur.fetchall()
+        if len(rows) > 0:
+            (status,oneTimeCopyStatus) = rows[0]
+        print("The number of parts: ", cur.rowcount)
+        print(status,oneTimeCopyStatus)
+        if oneTimeCopyStatus and status == "COMPLETED":
+            print("The one_time_copy status is True and COMPLETED. Hence not updating the newstatus in the DB")
+        else:
+            updateQuery = """update gh_bip_data_copy_test SET status = '%s'  WHERE task_name = '%s'""" % (newstatus, task_name)
+            print(updateQuery)
+            cur.execute(updateQuery)
+            updated_rows = cur.rowcount
+            # Commit the changes to the database
+            dbConnection.commit()
+
+        # Close communication with the PostgreSQL database
+        cur.close()
+    except Exception as err:
+        print(f"Unable to update the status in the database. Exception: {err}")
+    finally:
+        if dbConnection is not None:
+            dbConnection.close()
 
 # Connect to PostgreSQL database and insert sensor data record
 def handler(event, context):
@@ -130,6 +181,8 @@ def handler(event, context):
         #(task_name, src, dest, status) =
         any_inprogress_task(TASKNAME)
         alterDB()
+        updateDBOneTimeCopy(task_name,"success")
+        update_db_status(task_name, newstatus)
     except Exception as e:
         print(e)
         print(
