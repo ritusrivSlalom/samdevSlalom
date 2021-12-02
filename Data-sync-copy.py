@@ -11,7 +11,7 @@ def aws_connect_client(service):
     try:
         # Gaining API session
 
-        #session = boto3.Session()
+        session = boto3.Session()
         my_session = boto3.session.Session()
         region_name = my_session.region_name
         # print(region_name)
