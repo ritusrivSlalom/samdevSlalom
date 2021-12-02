@@ -63,7 +63,7 @@ module "event-lambda" {
 }
 
 resource "aws_iam_policy" "datasync-policy" {
-  name        = "datasync-policy1"
+  name        = "datasync-policy1-${data.aws_region.current.name}"
   description = "A datasync-policy"
 
   policy = <<EOF
