@@ -1,0 +1,6 @@
+{
+    "SourceLocation": "sourceBucket",
+    "DestinationLocation": "DestBucket",
+    "TaskName": "copy-task-1"
+}
+

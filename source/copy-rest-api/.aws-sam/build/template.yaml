@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: MyLambdaTokenAuthorizer
+        Authorizers:
+          MyLambdaTokenAuthorizer:
+            FunctionArn:
+              Fn::GetAtt:
+              - MyAuthFunction
+              - Arn
+  HelloFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.hello
+      Runtime: python3.6
+      CodeUri: HelloFunction
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: MyApi
+            Path: /hello
+            Method: GET
+  MyAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: MyAuthFunction
+      Handler: handler.authorizer
+      Runtime: python3.6
+Outputs:
+  Region:
+    Description: Region
+    Value:
+      Ref: AWS::Region
+  ApiId:
+    Description: API ID
+    Value:
+      Ref: MyApi
+  ApiUrl:
+    Description: API endpoint URL for Prod environment
+    Value:
+      Fn::Sub: https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/dev/

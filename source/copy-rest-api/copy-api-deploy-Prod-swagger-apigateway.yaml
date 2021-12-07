@@ -1,0 +1,138 @@
+---
+swagger: "2.0"
+info:
+  version: "1.0"
+  title: "copy-api-deploy"
+host: "dwva68go04.execute-api.eu-west-2.amazonaws.com"
+basePath: "/Prod"
+schemes:
+- "https"
+paths:
+  /copyapi:
+    post:
+      description: "api POST method to start the Copy task"
+      parameters:
+      - name: "dest"
+        in: "query"
+        description: "Name of the S3 bucket on cloud"
+        required: true
+        type: "string"
+      - name: "src"
+        in: "query"
+        description: "Path of source location e.g. /mountname/binfs/210303_XXX_0222_AAAAAABB/"
+        required: true
+        type: "string"
+      responses: {}
+      security:
+      - BIPLambdaRequestAuthorizer: []
+      - api_key: []
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:eu-west-2:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-2:023839011004:function:copy-api-deploy-COPYFunction-nBviGGmnpvig/invocations"
+        passthroughBehavior: "when_no_match"
+  /copyapi/getStatus:
+    get:
+      description: "api GET method to get copy task status"
+      parameters:
+      - name: "task_name"
+        in: "query"
+        description: "name of the task to query the status"
+        required: true
+        type: "string"
+      responses: {}
+      security:
+      - BIPLambdaRequestAuthorizer: []
+      - api_key: []
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:eu-west-2:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-2:023839011004:function:copy-api-deploy-GetStatusFunction-7Kao2uCzDDqO/invocations"
+        passthroughBehavior: "when_no_match"
+securityDefinitions:
+  api_key:
+    type: "apiKey"
+    name: "x-api-key"
+    in: "header"
+  BIPLambdaRequestAuthorizer:
+    type: "apiKey"
+    name: "Authorization"
+    in: "header"
+    x-amazon-apigateway-authtype: "custom"
+    x-amazon-apigateway-authorizer:
+      type: "request"
+      authorizerUri: "arn:aws:apigateway:eu-west-2:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-2:023839011004:function:copy-api-deploy-BIPLambdaRequestAuthorizer-TwQd65V3d1tm/invocations"
+      authorizerResultTtlInSeconds: 300
+      identitySource: "method.request.header.Authorization"
+x-amazon-apigateway-documentation:
+  version: "1.0.0"
+  createdDate: "2021-11-04T23:37:35Z"
+  documentationParts:
+  - location:
+      type: "METHOD"
+      path: "/copyapi/getStatus"
+      method: "GET"
+    properties:
+      description: "api GET method to get copy task status"
+  - location:
+      type: "METHOD"
+      path: "/copyapi"
+      method: "POST"
+    properties:
+      description: "api POST method to start the Copy task"
+  - location:
+      type: "QUERY_PARAMETER"
+      path: "/copyapi"
+      method: "POST"
+      name: "dest"
+    properties:
+      description: "Name of the S3 bucket on cloud"
+  - location:
+      type: "QUERY_PARAMETER"
+      path: "/copyapi"
+      method: "POST"
+      name: "src"
+    properties:
+      description: "Path of source location e.g. /mountname/binfs/210303_XXX_0222_AAAAAABB/"
+  - location:
+      type: "QUERY_PARAMETER"
+      path: "/copyapi/getStatus"
+      method: "GET"
+      name: "task_name"
+    properties:
+      description: "name of the task to query the status"
+  - location:
+      type: "REQUEST_HEADER"
+      path: "/copyapi"
+      method: "POST"
+      name: "Authorization"
+    properties:
+      description: "JWT time based encrypted authorization token"
+  - location:
+      type: "RESOURCE"
+      path: "/copyapi/getStatus"
+    properties:
+      description: "getStatus resource to retrieve status of given task"
+  - location:
+      type: "RESOURCE"
+      path: "/copyapi"
+    properties:
+      description: "copyapi resource to initate copy task"
+  - location:
+      type: "RESPONSE"
+      path: "/copyapi"
+      method: "POST"
+      statusCode: "200"
+    properties:
+      Task_name: "GH_BIP_TASK_"
+      Status: "TASK_CREATION_IN_PROGRESS"
+      ERROR: ""
+  - location:
+      type: "RESPONSE"
+      path: "/copyapi"
+      method: "POST"
+      statusCode: "400"
+    properties:
+      Task_name: " "
+      Status: "ERROR"
+      ERROR: "Valid Parameters not defined! "
