@@ -1,8 +1,11 @@
+# LDH - backported from GH repo. Receives requests exactly like PROD environemnt (IOW: API Gway or directly w/ fabricated JSON)
 import json
 import logging
 import boto3
 import urllib.parse
 import os
+import sys
+import psycopg2
 
 s3 = boto3.client('s3')
 REGION = os.environ['AWS_REGION']
@@ -53,18 +56,16 @@ def getDBConnection():
 
 def any_inprogress_task(task_name):
     dbConnection = getDBConnection()
-    task_name, src, dest, status = "","","",""
+    task_name, src, dest, status, one_time_copy = "","","","",False
     try:
-        cur = dbConnection.cursor()
-        readQuery = """SELECT task_name, src, dest, status FROM gh_bip_data_copy WHERE status != '%s' and status != '%s' and task_name = '%s' ORDER BY "id" DESC LIMIT 1""" % ('COMPLETED','CANCEL',task_name)
+        cur = dbConnection.cursor() 
+        readQuery = """SELECT task_name, sourcename, destinationname, status, one_time_copy FROM gh_bip_data_copy WHERE status != '%s' and status != '%s'  ORDER BY "id" """ % ('COMPLETED','CANCEL')   # and task_name = '%s' ... % ('COMPLETED','CANCEL',task_name) 
         cur.execute(readQuery)
         rows = cur.fetchall()
-        print("The number of parts: ", cur.rowcount)
-        for row in rows:
-            print(row)
-        if len(rows) > 0:
-            (task_name, src, dest, status) = rows[0]
-            print(str(status))
+        print("The number of rows returned: ", cur.rowcount)
+        if len(rows) > 0:            
+            (task_name, src, dest, status, one_time_copy) = rows[0]
+            print("First row status=" + str(status))
     except Exception as err:
         print(f"Unable to read the status from the database. Exception: {err}")
         sys.exit(1)
@@ -73,14 +74,13 @@ def any_inprogress_task(task_name):
             dbConnection.close()
         except:
             pass
-    return (task_name, src, dest, status)
-
+    return rows
 
 def update_db_status(task_name, newstatus):
     dbConnection = getDBConnection()
     try:
         cur = dbConnection.cursor()
-        updateQuery = """update gh_bip_data_copy SET status = '%s'  WHERE task_name = '%s' ORDER BY "id" DESC LIMIT 1""" % (newstatus, task_name)
+        updateQuery = """update gh_bip_data_copy SET status = '%s'  WHERE task_name = '%s'""" % (newstatus, task_name)
         cur.execute(updateQuery)
         updated_rows = cur.rowcount
         # Commit the changes to the database
@@ -89,6 +89,7 @@ def update_db_status(task_name, newstatus):
         cur.close()
     except Exception as err:
         print(f"Unable to update the status in the database. Exception: {err}")
+        updated_rows = 0
     finally:
         if dbConnection is not None:
             dbConnection.close()
@@ -111,8 +112,17 @@ def handler(event, context):
         sourceVal = [x.strip() for x in key.split('/') if x]
         print("S3 prefix")
         prefix = sourceVal.pop(-2)
-        TASKNAME = "GH_BIP_TASK_"+prefix
-        (task_name, src, dest, status) = any_inprogress_task(TASKNAME)
+        taskname = "GH_BIP_TASK_"+prefix
+
+
+        rows = any_inprogress_task(taskname)
+        for (task_name, src, dest, status, one_time_copy) in rows:
+            print ("IN_PROGRESS:", task_name, src, dest, status, one_time_copy)
+            if taskname == task_name and one_time_copy == True:
+                updated_rows = update_db_status(taskname, 'COMPLETED')
+                print("Updated:" + str(updated_rows))
+                print("1-time copy pass-thru - returning")
+                exit(0)
         
     except Exception as e:
         print(e)
