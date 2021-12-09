@@ -1,4 +1,4 @@
-# LDH - backported from GH repo. Receives requests exactly like PROD environemnt (IOW: API Gway or directly w/ fabricated JSON)
+# LDH - backported from GH repo. Receives requests exactly like PROD environemnt (IOW: API Gway or directly w/ fabricated large JSON structure)
 import json
 import logging
 import boto3
@@ -54,15 +54,15 @@ def getDBConnection():
 
     return conn
 
-def any_inprogress_task(task_name):
+def any_inprogress_task(taskname):
     dbConnection = getDBConnection()
     task_name, src, dest, status, one_time_copy = "","","","",False
     try:
         cur = dbConnection.cursor() 
-        readQuery = """SELECT task_name, sourcename, destinationname, status, one_time_copy FROM gh_bip_data_copy WHERE status != '%s' and status != '%s'  ORDER BY "id" """ % ('COMPLETED','CANCEL')   # and task_name = '%s' ... % ('COMPLETED','CANCEL',task_name) 
+        readQuery = """SELECT task_name, sourcename, destinationname, status, one_time_copy FROM gh_bip_data_copy WHERE taskname = '%s' and status != '%s' and status != '%s'  ORDER BY "id" """ % (taskname, 'COMPLETED','CANCEL')
         cur.execute(readQuery)
         rows = cur.fetchall()
-        print("The number of rows returned: ", cur.rowcount)
+        print("The number of rows returned: ", str(cur.rowcount))
         if len(rows) > 0:            
             (task_name, src, dest, status, one_time_copy) = rows[0]
             print("First row status=" + str(status))
@@ -112,12 +112,12 @@ def handler(event, context):
         sourceVal = [x.strip() for x in key.split('/') if x]
         print("S3 prefix")
         prefix = sourceVal.pop(-2)
-        taskname = "GH_BIP_TASK_"+prefix
+        taskname = "GH_BIP_TASK_" + prefix
 
 
         rows = any_inprogress_task(taskname)
         for (task_name, src, dest, status, one_time_copy) in rows:
-            print ("IN_PROGRESS:", task_name, src, dest, status, one_time_copy)
+            print ("PROCESSING:", task_name, src, dest, status, one_time_copy)
             if taskname == task_name and one_time_copy == True:
                 updated_rows = update_db_status(taskname, 'COMPLETED')
                 print("Updated:" + str(updated_rows))
