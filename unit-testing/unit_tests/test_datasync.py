@@ -96,18 +96,6 @@ def test_cancel_task_execution(name, get_arn, initial_options):
         )
     assert "AVAILABLE" == response
 
-def test_delete_task(name, get_arn, initial_options):
-    datasync_client = MyDataSyncClient()
-    locations = create_locations(datasync_client, create_smb=True, create_s3=True)
-    response = datasync_client.delete_task(
-            task_arn=get_arn,
-            source_location_arn=locations["smb_arn"],
-            destination_location_arn=locations["s3_arn"],
-            name=name,
-            metadata=initial_options
-        )
-    assert "TaskDeleted" == response
-
 def test_update_task(name, get_arn, initial_options, updated_options):
     datasync_client = MyDataSyncClient()
     locations = create_locations(datasync_client, create_smb=True, create_s3=True)
@@ -121,6 +109,17 @@ def test_update_task(name, get_arn, initial_options, updated_options):
         )
     assert updated_options == response.metadata
 
+def test_delete_task(name, get_arn, initial_options):
+    datasync_client = MyDataSyncClient()
+    locations = create_locations(datasync_client, create_smb=True, create_s3=True)
+    response = datasync_client.delete_task(
+            task_arn=get_arn,
+            source_location_arn=locations["smb_arn"],
+            destination_location_arn=locations["s3_arn"],
+            name=name,
+            metadata=initial_options
+        )
+    assert "TaskDeleted" == response
 
 
 

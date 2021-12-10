@@ -97,7 +97,8 @@ class MyDataSyncClient:
             arn_counter=self.arn_counter,
             metadata=metadata,
         )
-        self.tasks[task.arn] = task # odict_items([('arn:aws:datasync:us-east-1|task:my_task_name', <datasync.Task object at 0x7fb9ade819b0>)])
+        self.tasks[task.arn] = task 
+        # Sample of tasks[task.arn]: odict_items([('arn:aws:datasync:us-east-1|task:my_task_name', <datasync.Task object at 0x7fb9ade819b0>)])
         return task.arn
 
     
@@ -178,27 +179,3 @@ class MyDataSyncClient:
             s3_arn = "bip-analysis-bucket-dev"
         return {"smb_arn": smb_arn, "s3_arn": s3_arn}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# if source_location_arn not in self.client.locations:
-        #     raise InvalidRequestException(
-        #         "Location {0} not found.".format(source_location_arn)
-        #     )
-        # if destination_location_arn not in self.client.locations:
-        #     raise InvalidRequestException(
-        #         "Location {0} not found.".format(destination_location_arn)
-        #     )
