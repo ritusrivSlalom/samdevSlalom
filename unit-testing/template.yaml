@@ -1,27 +1,57 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
+Description: >
+  unit-testing
+
+  Sample SAM Template for unit-testing
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
 
 Resources:
-  UnitTestingFunction:
-    Type: AWS::Serverless::Function 
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.6
+      Events:
+        HelloWorld:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /hello
+            Method: get
+  UnitTestingdFunction:
+    Type: AWS::Serverless::Function
     Properties:
       CodeUri: unit_tests/
       Handler: app.lambda_handler
       Runtime: python3.6
       Events:
-        UnitTesting:
-          Type: Api
+        HelloWorld:
+          Type: Api 
           Properties:
-            Path: /test
-            Method: get
+            Path: /utest
+            Method: get          
 
-Outputs:
+Outputs:  
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
   UnitTestingApi:
-    Description: "API Gateway endpoint URL for Prod stage for Unit testing function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/test/"
-  UnitTestingFunction:
-    Description: "Unit Test Lambda Function ARN"
+    Description: "API Gateway endpoint URL for Prod stage for Unit Testing function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/utest/"
+  UnitTestingdFunction:
+    Description: "Unit Testing Lambda Function ARN"
     Value: !GetAtt UnitTestingFunction.Arn
-  UnitTestingFunctionIamRole:
+  UnitTestingdFunctionIamRole:
     Description: "Implicit IAM Role created for Unit Testing function"
-    Value: !GetAtt UnitTestingFunctionRole.Arn
+    Value: !GetAtt UnitTestingFunctionRole.Arn  
