@@ -12,7 +12,14 @@ SRC_BUCKET="gh-pcluster-automation-bucket-dev"      # Mainly for test - remove l
 
 REGION = os.environ['AWS_REGION']
 
-client = boto3.client("datasync", region_name=os.environ['AWS_REGION'])
+from botocore.config import Config
+config = Config(
+    retries = dict(
+        max_attempts = 10
+    )
+)
+
+client = boto3.client("datasync", region_name=os.environ['AWS_REGION'], config=config)
 
 singleton_connection = None # TODO: Create singleton class to replace this POC
 
@@ -189,17 +196,22 @@ def create_locations(client, src, destbucket):
     sourceVal = sourceVal.pop()
     if is_dev:
         #S3RoleArn = createRole(dest)
+        print("create_locations: S3 source: arn:aws:s3:::" + SRC_BUCKET + '/' + sourceVal)
+        print("create_locations: S3RoleArn=" + S3RoleArn)
         try:
             response = client.create_location_s3(
                 S3BucketArn="arn:aws:s3:::" + SRC_BUCKET,
                 Subdirectory=sourceVal,
                 S3Config={"BucketAccessRoleArn": S3RoleArn},
             )
+            print("create_locations: post-create_location_s3")
             nfs_arn = response["LocationArn"]
-            print("S3 prefix:" + sourceVal)
+            print("create_locations: nfs_arn = " + nfs_arn)
         except Exception as err:
-            print(f"Unable to create datasync source location. Exception: {err}")
-            sys.exit(1)
+            err_msg = f"Unable to create datasync source location. Exception: {err}"
+            publish_message(err_msg)
+            print(err_msg)
+            sys.exit(1) # Later: raise(err)  # <- create_task must accommodate this
     else:
         try:
             response = client.create_location_nfs(
@@ -236,7 +248,7 @@ def create_locations(client, src, destbucket):
 
 
 def create_task(src, dest):
-    print("Creating a Task : src=" + src)
+    print("Creating a Task : src folder=" + src)
     print("Creating a Task : dest bucket=" + dest)
     try:
         locations = create_locations(client, src, dest)
@@ -278,12 +290,12 @@ def any_inprogress_task():
     task_name, src, dest, status = "","","",""
     try:
         cur = singleton_connection.cursor()
-        readQuery = """SELECT task_name, sourcename, destinationname, status, task_id FROM gh_bip_data_copy WHERE status != '%s' and status != '%s' ORDER BY "id" DESC""" % ('COMPLETED','CANCEL')
+        readQuery = """SELECT task_name, sourcename, destinationname, status, task_id, one_time_copy FROM gh_bip_data_copy WHERE status != '%s' and status != '%s' ORDER BY "id" DESC""" % ('COMPLETED','CANCEL')
         cur.execute(readQuery)
         rows = cur.fetchall()
         print("The number of rows returned: ", cur.rowcount)
         if cur.rowcount > 0:
-            (task_name, src, dest, status, task_id) = rows[0]
+            (task_name, src, dest, status, task_id, one_time_copy) = rows[0]
             print(str(status))
     except Exception as err:
         print(f"Unable to read the status from the database. Exception: {err}")
@@ -332,6 +344,24 @@ def publish_message(error_msg):
     except Exception as e:
         print(f"Unable to publish message. Exception: {e}")
 
+def checkCompletedFile(src, dest_bucket):
+    bucket_name = "slalomtesting1"
+    file_path = "test/"
+    fileName = "copy_complete.txt"
+    # s3_client = aws_connect_client("s3")  # <- localo testing
+    s3_client = boto3.client('s3')
+    sourceVal = [x.strip() for x in src.split('/') if x]    # Extract the last segment of the folder(s) path
+    sourceVal = sourceVal.pop()
+    dest = dest_bucket + '/' + sourceVal + '/' + "CopyComplete.txt"
+    try:
+        response = s3_client.head_object(Bucket=bucket_name, Key=f'{file_path}{fileName}')
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            print("The copy_complete.txt file is present")
+        else:
+            print("THe copy_complete.txt file is not present")
+    except Exception as err:
+        print(f"Unable to find the copy_complete.txt file in the bucket : {bucket_name}. Exception: {err}")
+        raise err
 
 def handler(event, context):
     # TODO implement event parser
@@ -341,8 +371,8 @@ def handler(event, context):
     try:
         singleton_connection = getDBConnection()
         rows = any_inprogress_task()
-        for (task_name, src, dest, status, task_id) in rows:
-            print (task_name, src, dest, status)
+        for (task_name, src, dest, status, task_id, one_time_copy) in rows:
+            print ("IN_PROGRESS:", task_name, src, dest, status, one_time_copy)
             if status == 'TASK_CREATION' and task_id is not None:
                 task_id=getTaskId(task_name)
                 task_arn="arn:aws:datasync:"+REGION+":"+accntid+":task/"+task_id
@@ -355,7 +385,7 @@ def handler(event, context):
                 wU = True
                 while wU == True:
                     taskStatus=describe_task(task_arn)
-                    print(taskStatus)
+                    print("Task status=" + taskStatus)
                     if taskStatus == 'AVAILABLE':
                         wU = False
                     else:
@@ -370,7 +400,7 @@ def handler(event, context):
                 update_db_status(task_name, response["Status"])
                 if response["Status"] == 'ERROR':
                     publish_message("Error while data copy in task "+task_name+" and Execution Id : "+exec_id)
-            elif status in ['SUCCESS','ERROR']:    
+            elif status in ['ERROR']:    
                 task_id=getTaskId(task_name)
                 task_arn="arn:aws:datasync:"+REGION+":"+accntid+":task/"+task_id
                 status=start_exec(task_name,task_arn)
@@ -380,10 +410,15 @@ def handler(event, context):
                 task_execution_arn="arn:aws:datasync:"+REGION+":"+accntid+":task/"+task_id+"/execution/"+exec_id
                 response = client.describe_task_execution(TaskExecutionArn=task_execution_arn)
                 update_db_status(task_name, response["Status"])
-                if response["Status"] == 'ERROR':
-                    publish_message("Error while data copy in task "+task_name+" and Execution Id : "+exec_id)
+                publish_message("Error while data copy in task "+task_name+" and Execution Id : "+exec_id)
+            elif status in  ['SUCCESS']:    
+                task_id=getTaskId(task_name)
+                task_arn="arn:aws:datasync:"+REGION+":"+accntid+":task/"+task_id
+                response = client.describe_task_execution(TaskExecutionArn=task_execution_arn)
+                if ( one_time_copy == True ):
+                    update_db_status(task_name, 'COMPLETED')
     except Exception as err:
-        print(f"Unable to execute the fucntion. Exception : {err}")
+        print(f"Unable to execute the function. Exception : {err}")
         publish_message("Error in copy scheduler: "+err)
         raise err
         sys.exit(1)
