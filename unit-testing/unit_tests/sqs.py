@@ -2,7 +2,7 @@ import boto3
 
 
 class MySQSClient:
-    def __init__(self, region_name="us-east-1"):
+    def __init__(self, region_name="eu-west-2"):
         self.client = boto3.client("sqs", region_name=region_name)
 
     def get_queue_url(self, queue_name):

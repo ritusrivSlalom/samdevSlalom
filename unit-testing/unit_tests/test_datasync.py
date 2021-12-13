@@ -17,7 +17,7 @@ def name():
 
 @pytest.fixture
 def get_arn(name):
-    return "arn:aws:datasync:us-east-1|task:{0}".format(name)   
+    return "arn:aws:datasync:eu-west-2|task:{0}".format(name)   
 
 @pytest.fixture
 def initial_options():

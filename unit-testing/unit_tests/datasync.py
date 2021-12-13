@@ -79,7 +79,7 @@ class TaskExecution():
         self.status = "ERROR"
 
 class MyDataSyncClient:
-    def __init__(self, region_name="us-east-1"):
+    def __init__(self, region_name="eu-west-2"):
         self.arn_counter = 0
         self.region_name = region_name
         self.tasks = OrderedDict()
@@ -98,7 +98,7 @@ class MyDataSyncClient:
             metadata=metadata,
         )
         self.tasks[task.arn] = task 
-        # Sample of tasks[task.arn]: odict_items([('arn:aws:datasync:us-east-1|task:my_task_name', <datasync.Task object at 0x7fb9ade819b0>)])
+        # Sample of tasks[task.arn]: odict_items([('arn:aws:datasync:eu-west-2|task:my_task_name', <datasync.Task object at 0x7fb9ade819b0>)])
         return task.arn
 
     

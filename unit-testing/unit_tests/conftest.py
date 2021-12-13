@@ -17,17 +17,17 @@ def aws_credentials():
 @pytest.fixture(scope='function')
 def s3_client(aws_credentials):
     with mock_s3():
-        conn = boto3.client("s3", region_name="us-east-1")
+        conn = boto3.client("s3", region_name="eu-west-2")
         yield conn
 
 @pytest.fixture(scope='function')
 def sqs_client(aws_credentials):
     with mock_sqs():
-        conn = boto3.client("sqs", region_name="us-east-1")
+        conn = boto3.client("sqs", region_name="eu-west-2")
         yield conn
 
 @pytest.fixture(scope='function')
 def datasync_client(aws_credentials):
     with mock_datasync():
-        conn = boto3.client("datasync", region_name="us-east-1")
+        conn = boto3.client("datasync", region_name="eu-west-2")
         yield conn
