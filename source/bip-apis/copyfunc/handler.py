@@ -118,8 +118,8 @@ def readDB(task):
     dbConnection = getDBConnection()
     try:
         cur = dbConnection.cursor()
-        readQuery = """SELECT status FROM gh_bip_data_copy WHERE task_name = '%s' ORDER BY "id" DESC LIMIT 1""" % (task)
-        cur.execute(readQuery)
+        readQuery = """SELECT status FROM gh_bip_data_copy WHERE task_name = %s ORDER BY "id" DESC LIMIT 1"""
+        cur.execute(readQuery, [task])
         rows = cur.fetchall()
         print("read rows")
         if len(rows) > 0:

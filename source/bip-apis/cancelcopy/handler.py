@@ -83,8 +83,8 @@ def update_db_status(task_name, newstatus):
     try:
         print("updating task status as completed")
         cur = dbConnection.cursor()
-        updateQuery = """update gh_bip_data_copy SET status = '%s'  WHERE task_name = '%s'""" % (newstatus.lower(), task_name)
-        cur.execute(updateQuery)
+        updateQuery = """update gh_bip_data_copy SET status = %s  WHERE task_name = %s"""
+        cur.execute(updateQuery, [newstatus.lower(), task_name])
         updated_rows = cur.rowcount
         print ("updated rows: ")
         print(updated_rows)
@@ -104,8 +104,8 @@ def cancel_task(task_name,newstatus):
     src, dest, status = "","",""
     try:
         cur = dbConnection.cursor()
-        readQuery = """SELECT task_name, status FROM gh_bip_data_copy WHERE task_name = '%s' ORDER BY "id" DESC LIMIT 1""" % (task_name)
-        cur.execute(readQuery)
+        readQuery = """SELECT task_name, status FROM gh_bip_data_copy WHERE task_name = %s ORDER BY "id" DESC LIMIT 1"""
+        cur.execute(readQuery, [task_name])
         rows = cur.fetchall()
         print("The number of rows returned: ", cur.rowcount)
         if cur.rowcount == 0:

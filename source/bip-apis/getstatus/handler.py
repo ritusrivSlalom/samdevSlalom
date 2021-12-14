@@ -86,8 +86,8 @@ def any_inprogress_task(task_name):
     src, dest, status = "","",""
     try:
         cur = dbConnection.cursor()
-        readQuery = """SELECT task_name, sourcename, destinationname, status FROM gh_bip_data_copy WHERE task_name = '%s' ORDER BY "id" DESC LIMIT 1""" % (task_name)
-        cur.execute(readQuery)
+        readQuery = """SELECT task_name, sourcename, destinationname, status FROM gh_bip_data_copy WHERE task_name = %s ORDER BY "id" DESC LIMIT 1"""
+        cur.execute(readQuery, [task_name])
         rows = cur.fetchall()
         print("The number of rows returned: ", cur.rowcount)
         for row in rows:

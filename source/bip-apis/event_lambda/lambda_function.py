@@ -56,10 +56,12 @@ def getDBConnection():
 def any_inprogress_task(task_name):
     dbConnection = getDBConnection()
     task_name, src, dest, status = "","","",""
+    completed_status = 'completed'
+    cancel_status = 'cancel'
     try:
         cur = dbConnection.cursor()
-        readQuery = """SELECT task_name, src, dest, status FROM gh_bip_data_copy WHERE status != '%s' and status != '%s' and task_name = '%s' ORDER BY "id" DESC LIMIT 1""" % ('COMPLETED','CANCEL',task_name)
-        cur.execute(readQuery)
+        readQuery = """SELECT task_name, src, dest, status FROM gh_bip_data_copy WHERE lower(status) NOT IN (%s, %s) and task_name = %s ORDER BY "id" DESC LIMIT 1"""
+        cur.execute(readQuery, [completed_status, cancel_status, task_name])
         rows = cur.fetchall()
         print("The number of parts: ", cur.rowcount)
         for row in rows:
@@ -82,8 +84,8 @@ def update_db_status(task_name, newstatus):
     dbConnection = getDBConnection()
     try:
         cur = dbConnection.cursor()
-        updateQuery = """update gh_bip_data_copy SET status = '%s'  WHERE task_name = '%s'""" % (newstatus, task_name)
-        cur.execute(updateQuery)
+        updateQuery = """update gh_bip_data_copy SET status = %s  WHERE task_name = %s"""
+        cur.execute(updateQuery, [newstatus, task_name])
         updated_rows = cur.rowcount
         # Commit the changes to the database
         dbConnection.commit()
