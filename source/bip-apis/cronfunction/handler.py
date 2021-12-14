@@ -314,7 +314,7 @@ def any_inprogress_task():
         cur = dbConnection.cursor()
         completed_status = 'completed'
         cancel_status = 'cancel'
-        readQuery = """SELECT task_name, sourcename, destinationname, status, task_id FROM gh_bip_data_copy WHERE lower(status) NOT IN ('%s', '%s') ORDER BY "id" DESC""" 
+        readQuery = """SELECT task_name, sourcename, destinationname, status, task_id FROM gh_bip_data_copy WHERE lower(status) NOT IN (%s, %s) ORDER BY "id" DESC""" 
         cur.execute(readQuery, [completed_status, cancel_status])
         rows = cur.fetchall()
         print("The number of rows returned: ", cur.rowcount)
