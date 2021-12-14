@@ -312,10 +312,10 @@ def any_inprogress_task():
     task_name, src, dest, status = "","","",""
     try:
         cur = dbConnection.cursor()
-        not_acceptabe_status_1 = 'completed'
-        not_acceptabe_status_2 = 'cancel'
-        readQuery = """SELECT task_name, sourcename, destinationname, status, task_id FROM gh_bip_data_copy WHERE lower(status) != '(%not_acceptabe_status_1)' and lower(status) != '(%not_acceptabe_status_2)' ORDER BY "id" DESC""" 
-        cur.execute(readQuery, [not_acceptabe_status_1, not_acceptabe_status_2])
+        completed_status = 'completed'
+        cancel_status = 'cancel'
+        readQuery = """SELECT task_name, sourcename, destinationname, status, task_id FROM gh_bip_data_copy WHERE lower(status) NOT IN ('(%completed_status)', '(%cancel_status)') ORDER BY "id" DESC""" 
+        cur.execute(readQuery, [completed_status, cancel_status])
         rows = cur.fetchall()
         print("The number of rows returned: ", cur.rowcount)
         if cur.rowcount > 0:
