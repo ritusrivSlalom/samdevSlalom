@@ -1,29 +1,10 @@
 import boto3
 from exceptions import (
-    AccessDeniedByLock,
-    BucketAlreadyExists,
-    BucketNeedsToBeNew,
-    MissingBucket,
-    InvalidBucketName,
-    InvalidPart,
-    InvalidRequest,
-    EntityTooSmall,
-    MissingKey,
-    InvalidNotificationDestination,
-    MalformedXML,
-    InvalidStorageClass,
-    InvalidTargetBucketForLogging,
-    CrossLocationLoggingProhibitted,
-    NoSuchPublicAccessBlockConfiguration,
-    InvalidPublicAccessBlockConfiguration,
-    WrongPublicAccessBlockAccountIdError,
-    NoSuchUpload,
-    ObjectLockConfigurationNotFoundError,
-    InvalidTagError,
+    MissingBucket
 )
 
 class MyS3Client:
-    def __init__(self, region_name="eu-west-2"):
+    def __init__(self, region_name="us-east-1"):
         self.client = boto3.client("s3", region_name=region_name)
     
     def get_bucket(self, bucket_name):
