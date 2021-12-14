@@ -156,7 +156,7 @@ def updateExecId(task_name, execution_arn):
         cur = dbConnection.cursor()
         print(execution_id)
         print(task_id)
-        updateQuery = """UPDATE gh_bip_data_copy SET execution_id = '%s', task_id = '%s' WHERE task_name = '%s'"""
+        updateQuery = """UPDATE gh_bip_data_copy SET execution_id = %s, task_id = %s WHERE task_name = %s"""
         cur.execute(updateQuery, [execution_id, task_id, task_name])
         updated_rows = cur.rowcount
         print ("updated rows: ")
@@ -336,7 +336,7 @@ def get_db_status(task_name):
     dbConnection = getDBConnection()
     try:
         cur = dbConnection.cursor()
-        readQuery = """SELECT status FROM gh_bip_data_copy WHERE task_name = '%s' ORDER BY "id" DESC LIMIT 1"""
+        readQuery = """SELECT status FROM gh_bip_data_copy WHERE task_name = %s ORDER BY "id" DESC LIMIT 1"""
         cur.execute(readQuery, [task_name])
         rows = cur.fetchall()
         print("read status")
