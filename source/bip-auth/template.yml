@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Resources:
+      
+  BIPLambdaRequestAuthorizer:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'bip_api_authorizer'
+      CodeUri: ./authorizer
+      Handler: copyAuthorizer.authorizer
+      Runtime: python3.7
+      Timeout: 120
+      Policies:
+      - AmazonS3ReadOnlyAccess
+      - SecretsManagerReadWrite
+
+  
+Outputs:
+  BasicAuthorizerFunction:
+    Description: Basic authorizer Lambda Function ARN
+    Value: !GetAtt BIPLambdaRequestAuthorizer.Arn

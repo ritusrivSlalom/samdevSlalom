@@ -1,1 +1,3 @@
 sam-api-gateway-token-auth/venv
+get-pip.py
+unit-testing/__pycache__
