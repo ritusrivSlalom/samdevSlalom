@@ -1,0 +1,186 @@
+# NOTE; AWS Acct used is Slalom DEV (063935053328)
+# Note2: Cloudwatch dashboard resrcs pegged as dashboard:* on DEV
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS ParallelCluster serverless API
+Globals:
+  Function:
+    Timeout: 900
+
+Resources:
+  ParallelClusterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ParallelCluster/
+      Handler: create_cluster.lambda_handler
+      Runtime: python3.6
+      Policies:
+      - Statement:
+        - Sid: EC2Describe
+          Effect: Allow
+          Action:
+          - ec2:*
+          Resource: '*'
+        - Sid: AutoScalingDescribe
+          Effect: Allow
+          Action:
+          - autoscaling:DescribeAutoScalingGroups
+          - autoscaling:DescribeAutoScalingInstances
+          Resource: '*'
+        - Sid: AutoScalingModify
+          Effect: Allow
+          Action:
+          - autoscaling:CreateAutoScalingGroup
+          - autoscaling:PutNotificationConfiguration
+          - autoscaling:UpdateAutoScalingGroup
+          - autoscaling:PutScalingPolicy
+          - autoscaling:DescribeScalingActivities
+          - autoscaling:DeleteAutoScalingGroup
+          - autoscaling:DeletePolicy
+          - autoscaling:DisableMetricsCollection
+          - autoscaling:EnableMetricsCollection
+          Resource: '*'
+        - Sid: DynamoDBDescribe
+          Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          Resource: '*'
+        - Sid: DynamoDBModify
+          Effect: Allow
+          Action:
+          - dynamodb:CreateTable
+          - dynamodb:DeleteTable
+          - dynamodb:TagResource
+          Resource: '*'
+        - Sid: SQSDescribe
+          Effect: Allow
+          Action:
+          - sqs:GetQueueAttributes
+          Resource: '*' 
+        - Sid: SQSModify
+          Effect: Allow
+          Action:
+          - sqs:CreateQueue
+          - sqs:SetQueueAttributes
+          - sqs:DeleteQueue
+          - sqs:TagQueue
+          Resource: '*'        
+        - Sid: SNSDescribe
+          Effect: Allow
+          Action:
+          - sns:ListTopics
+          - sns:GetTopicAttributes
+          Resource: '*'
+        - Sid: SNSModify
+          Effect: Allow
+          Action:
+          - sns:CreateTopic
+          - sns:Subscribe
+          - sns:DeleteTopic
+          Resource: '*'      
+        - Sid: CloudFormationDescribe
+          Effect: Allow
+          Action:
+          - cloudformation:DescribeStackEvents
+          - cloudformation:DescribeStackResource
+          - cloudformation:DescribeStackResources
+          - cloudformation:DescribeStacks
+          - cloudformation:ListStacks
+          - cloudformation:GetTemplate
+          Resource: '*'       
+        - Sid: CloudFormationModify
+          Effect: Allow
+          Action:
+          - cloudformation:CreateStack
+          - cloudformation:DeleteStack
+          - cloudformation:UpdateStack
+          Resource: '*'             
+        - Sid: S3ParallelCluster
+          Effect: Allow
+          Action:
+          - s3:*
+          Resource: 'arn:aws:s3:::*parallelcluster*'
+        - Sid: IAMModify
+          Effect: Allow
+          Action:
+          - iam:PassRole
+          - iam:CreateRole
+          - iam:CreateServiceLinkedRole
+          - iam:DeleteRole
+          - iam:GetRole
+          - iam:TagRole
+          - iam:SimulatePrincipalPolicy
+          Resource:
+          - arn:aws:iam::063935053328:role/parallelcluster*
+          - arn:aws:iam::063935053328:role/aws-service-role/*
+        - Sid: IAMCreateInstanceProfile
+          Effect: Allow
+          Action:
+          - iam:CreateInstanceProfile
+          - iam:DeleteInstanceProfile
+          Resource: 'arn:aws:iam::063935053328:instance-profile/*'  
+        - Sid: IAMInstanceProfile
+          Effect: Allow
+          Action:
+          - iam:AddRoleToInstanceProfile
+          - iam:RemoveRoleFromInstanceProfile
+          - iam:GetRolePolicy
+          - iam:GetPolicy
+          - iam:AttachRolePolicy
+          - iam:DetachRolePolicy
+          - iam:PutRolePolicy
+          - iam:DeleteRolePolicy
+          Resource: '*'   
+        - Sid: EFSDescribe
+          Effect: Allow
+          Action:
+          - elasticfilesystem:DescribeMountTargets
+          - elasticfilesystem:DescribeMountTargetSecurityGroups
+          Resource: '*'
+        - Sid: SSMDescribe
+          Effect: Allow
+          Action:
+          - ssm:GetParametersByPath
+          Resource: '*'  
+        - Sid: FSx
+          Effect: Allow
+          Action:
+          - fsx:*
+          Resource: '*'
+        - Sid: EFS
+          Effect: Allow
+          Action:
+          - elasticfilesystem:*
+          Resource: '*'
+        - Sid: CloudWatchLogs
+          Effect: Allow
+          Action:
+          - logs:DeleteLogGroup
+          - logs:PutRetentionPolicy
+          - logs:DescribeLogGroups
+          - logs:CreateLogGroup
+          Resource: '*' 
+        - Sid: CloudWatchDashboard
+          Effect: Allow
+          Action:
+          - cloudwatch:GetDashboard
+          - cloudwatch:ListDashboards
+          - cloudwatch:PutDashboard
+          - cloudwatch:DeleteDashboards
+          Resource: 'arn:aws:cloudwatch:::dashboard/parallelcluster-*' 
+        - Sid: LambdaCallingLambda
+          Effect: Allow
+          Action:
+          - lambda:*
+          Resource: '*'           
+      Events:
+        pCluster:
+          Type: Api
+          Properties:
+            Path: /pcluster
+            Method: any
+
+Outputs:
+  ParallelClusterApi:
+    Description: "API Gateway endpoint URL for Prod stage for ParallelCluster function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/pcluster/"

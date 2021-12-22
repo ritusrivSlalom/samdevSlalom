@@ -1,0 +1,1 @@
+aws-parallelcluster==2.11.3

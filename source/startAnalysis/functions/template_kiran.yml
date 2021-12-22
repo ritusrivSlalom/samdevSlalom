@@ -1,0 +1,363 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AWS ParallelCluster serverless API
+Globals:
+  Function:
+    Timeout: 900
+
+Resources:
+  ServerlessHttpApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        ApiKeyRequired: true # sets for all methods
+
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn: [ApiUsagePlan]
+    Properties:
+      Name: !Join ["", [{ "Ref": "AWS::StackName" }, "-apikey"]]
+      Description: "CloudFormation API Key V1"
+      Enabled: true
+      GenerateDistinctId: false
+      Value: 3c28b45b-181d-43ad-a58b-f6ed9078c83e1-1238
+      StageKeys:
+        - RestApiId: !Ref ServerlessHttpApi
+          StageName: Prod
+
+  ApiUsagePlan:
+    Type: "AWS::ApiGateway::UsagePlan"
+    DependsOn:
+      - ServerlessHttpApiProdStage
+    Properties:
+      ApiStages:
+        - ApiId: !Ref ServerlessHttpApi
+          Stage: Prod
+      Description: !Join [" ", [{ "Ref": "AWS::StackName" }, "usage plan"]]
+      Quota:
+        Limit: 1000
+        Period: MONTH
+      UsagePlanName: !Join ["", [{ "Ref": "AWS::StackName" }, "-usage-plan"]]
+
+  ApiUsagePlanKey:
+    Type: "AWS::ApiGateway::UsagePlanKey"
+    DependsOn:
+      - ServerlessHttpApi
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref ApiUsagePlan
+  
+  sgeAPI:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: sgeAPI_function/
+      Handler: function.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - Statement:
+            - Sid: ssmsend
+              Effect: Allow
+              Action:
+                - ssm:SendCommand
+              Resource: 
+                - arn:aws:ec2:us-west-2:001508866060:instance/*
+                - arn:aws:ssm:us-west-2::document/AWS-RunShellScript
+                - arn:aws:s3:::gh-pcluster-data/ssm
+            - Sid: ssmcommand
+              Effect: Allow
+              Action:
+                - ssm:GetCommandInvocation
+              Resource: 
+                - arn:aws:ssm:us-west-2:001508866060:*
+            - Sid: s3access
+              Effect: Allow
+              Action:
+                 - s3:*
+              Resource:
+                - arn:aws:s3:::gh-pcluster-data
+                - arn:aws:s3:::gh-pcluster-data/*   
+      Events:
+        sge:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ServerlessHttpApi
+            Path: /sge
+            Method: any          
+  ParallelClusterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: parallelcluster_function/
+      Handler: function.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - Statement:
+            - Sid: EC2Describe
+              Effect: Allow
+              Action:
+                - ec2:DescribeKeyPairs
+                - ec2:DescribeRegions
+                - ec2:DescribeVpcs
+                - ec2:DescribeSubnets
+                - ec2:DescribeSecurityGroups
+                - ec2:DescribePlacementGroups
+                - ec2:DescribeImages
+                - ec2:DescribeInstances
+                - ec2:DescribeInstanceStatus
+                - ec2:DescribeSnapshots
+                - ec2:DescribeVolumes
+                - ec2:DescribeVpcAttribute
+                - ec2:DescribeAddresses
+                - ec2:CreateTags
+                - ec2:DescribeNetworkInterfaces
+                - ec2:DescribeAvailabilityZones
+                - ec2:Describe*
+                - ec2:Get*
+              Resource: "*"
+            - Sid: NetworkingEasyConfig
+              Effect: Allow
+              Action:
+                - ec2:CreateVpc
+                - ec2:ModifyVpcAttribute
+                - ec2:DescribeNatGateways
+                - ec2:CreateNatGateway
+                - ec2:DescribeInternetGateways
+                - ec2:CreateInternetGateway
+                - ec2:AttachInternetGateway
+                - ec2:DescribeRouteTables
+                - ec2:CreateRouteTable
+                - ec2:AssociateRouteTable
+                - ec2:CreateSubnet
+                - ec2:ModifySubnetAttribute
+              Resource: "*"
+            - Sid: EC2Modify
+              Effect: Allow
+              Action:
+                - ec2:CreateVolume
+                - ec2:RunInstances
+                - ec2:AllocateAddress
+                - ec2:AssociateAddress
+                - ec2:AttachNetworkInterface
+                - ec2:AuthorizeSecurityGroupEgress
+                - ec2:AuthorizeSecurityGroupIngress
+                - ec2:CreateNetworkInterface
+                - ec2:CreateSecurityGroup
+                - ec2:ModifyVolumeAttribute
+                - ec2:ModifyNetworkInterfaceAttribute
+                - ec2:DeleteNetworkInterface
+                - ec2:DeleteVolume
+                - ec2:TerminateInstances
+                - ec2:DeleteSecurityGroup
+                - ec2:DisassociateAddress
+                - ec2:RevokeSecurityGroupIngress
+                - ec2:RevokeSecurityGroupEgress
+                - ec2:ReleaseAddress
+                - ec2:CreatePlacementGroup
+                - ec2:DeletePlacementGroup
+              Resource: "*"
+            - Sid: AutoScalingDescribe
+              Effect: Allow
+              Action:
+                - autoscaling:DescribeAutoScalingGroups
+                - autoscaling:DescribeAutoScalingInstances
+              Resource: "*"
+            - Sid: AutoScalingModify
+              Effect: Allow
+              Action:
+                - autoscaling:CreateAutoScalingGroup
+                - ec2:CreateLaunchTemplate
+                - ec2:ModifyLaunchTemplate
+                - ec2:DeleteLaunchTemplate
+                - ec2:DescribeLaunchTemplates
+                - ec2:DescribeLaunchTemplateVersions
+                - autoscaling:PutNotificationConfiguration
+                - autoscaling:UpdateAutoScalingGroup
+                - autoscaling:PutScalingPolicy
+                - autoscaling:DescribeScalingActivities
+                - autoscaling:DeleteAutoScalingGroup
+                - autoscaling:DeletePolicy
+                - autoscaling:DisableMetricsCollection
+                - autoscaling:EnableMetricsCollection
+              Resource: "*"
+            - Sid: DynamoDBDescribe
+              Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+              Resource: "*"
+            - Sid: DynamoDBModify
+              Effect: Allow
+              Action:
+                - dynamodb:CreateTable
+                - dynamodb:DeleteTable
+                - dynamodb:TagResource
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Query
+              Resource: "*"
+            - Sid: SQSDescribe
+              Effect: Allow
+              Action:
+                - sqs:GetQueueAttributes
+              Resource: "*"
+            - Sid: SQSModify
+              Effect: Allow
+              Action:
+                - sqs:CreateQueue
+                - sqs:SetQueueAttributes
+                - sqs:DeleteQueue
+                - sqs:TagQueue
+              Resource: "*"
+            - Sid: SNSDescribe
+              Effect: Allow
+              Action:
+                - sns:ListTopics
+                - sns:GetTopicAttributes
+              Resource: "*"
+            - Sid: SNSModify
+              Effect: Allow
+              Action:
+                - sns:CreateTopic
+                - sns:Subscribe
+                - sns:DeleteTopic
+                - sns:Unsubscribe
+              Resource: "*"
+            - Sid: CloudFormationDescribe
+              Effect: Allow
+              Action:
+                - cloudformation:DescribeStackEvents
+                - cloudformation:DescribeStackResource
+                - cloudformation:DescribeStackResources
+                - cloudformation:DescribeStacks
+                - cloudformation:ListStacks
+                - cloudformation:GetTemplate
+              Resource: "*"
+            - Sid: CloudFormationModify
+              Effect: Allow
+              Action:
+                - cloudformation:CreateStack
+                - cloudformation:DeleteStack
+                - cloudformation:UpdateStack
+              Resource: "*"
+            - Sid: S3ParallelClusterReadOnly
+              Effect: Allow
+              Action:
+                - s3:Get*
+                - s3:List*
+              Resource: "arn:aws:s3:::*-aws-parallelcluster*"
+            - Sid: IAMModify
+              Effect: Allow
+              Action:
+                - iam:PassRole
+                - iam:CreateRole
+                - iam:CreateServiceLinkedRole
+                - iam:DeleteRole
+                - iam:GetRole
+                - iam:TagRole
+                - iam:SimulatePrincipalPolicy
+              Resource:
+                - arn:aws:iam::001508866060:role/parallelcluster*
+                - arn:aws:iam::001508866060:role/aws-service-role/*
+            - Sid: IAMCreateInstanceProfile
+              Effect: Allow
+              Action:
+                - iam:CreateInstanceProfile
+                - iam:DeleteInstanceProfile
+              Resource: "arn:aws:iam::001508866060:instance-profile/*"
+            - Sid: IAMInstanceProfile
+              Effect: Allow
+              Action:
+                - iam:AddRoleToInstanceProfile
+                - iam:RemoveRoleFromInstanceProfile
+                - iam:GetRolePolicy
+                - iam:GetPolicy
+                - iam:AttachRolePolicy
+                - iam:DetachRolePolicy
+                - iam:PutRolePolicy
+                - iam:DeleteRolePolicy
+              Resource: "*"
+            - Sid: EFSDescribe
+              Effect: Allow
+              Action:
+                - elasticfilesystem:DescribeMountTargets
+                - elasticfilesystem:DescribeMountTargetSecurityGroups
+                - ec2:DescribeNetworkInterfaceAttribute
+              Resource: "*"
+            - Sid: SSMDescribe
+              Effect: Allow
+              Action:
+                - ssm:GetParametersByPath
+              Resource: "*"
+            - Sid: FSx
+              Effect: Allow
+              Action:
+                - fsx:*
+              Resource: "*"
+            - Sid: EFS
+              Effect: Allow
+              Action:
+                - elasticfilesystem:*
+              Resource: "*"
+            - Sid: CloudWatchLogs
+              Effect: Allow
+              Action:
+                - logs:DeleteLogGroup
+                - logs:PutRetentionPolicy
+                - logs:DescribeLogGroups
+                - logs:CreateLogGroup
+              Resource: "*"
+            - Sid: Lambda
+              Effect: Allow
+              Action:
+                - lambda:CreateFunction
+                - lambda:DeleteFunction
+                - lambda:GetFunctionConfiguration
+                - lambda:GetFunction
+                - lambda:InvokeFunction
+                - lambda:AddPermission
+                - lambda:RemovePermission
+              Resource:
+                - arn:aws:lambda:us-west-2:001508866060:function:parallelcluster-*
+                - arn:aws:lambda:us-west-2:001508866060:function:pcluster-*
+            - Sid: S3CreateBuckectAccess
+              Effect: Allow
+              Action: "s3:*"
+              Resource: "*"
+            - Sid: CloudWatch
+              Effect: Allow
+              Action:
+                - "cloudwatch:PutDashboard"
+                - "cloudwatch:ListDashboards"
+                - "cloudwatch:DeleteDashboards"
+                - "cloudwatch:GetDashboard"
+              Resource: "*"
+            - Sid: Route53HostedZones
+              Effect: Allow
+              Action:
+                - "route53:ChangeResourceRecordSets"
+                - "route53:ChangeTagsForResource"
+                - "route53:CreateHostedZone"
+                - "route53:DeleteHostedZone"
+                - "route53:GetChange"
+                - "route53:GetHostedZone"
+                - "route53:ListResourceRecordSets"
+                - "route53:ListQueryLoggingConfigs"
+              Resource: "*"
+      Events:
+        pCluster:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ServerlessHttpApi
+            Path: /pcluster
+            Method: any
+  
+Outputs:
+  ParallelClusterApi:
+    Description: "API Gateway endpoint URL for Prod stage for ParallelCluster function"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/pcluster/"
+    # Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/pcluster/"
+  sge:
+    Description: "API Gateway endpoint URL for Prod stage for ParallelCluster function"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/sge/"
+    
+

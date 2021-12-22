@@ -1,0 +1,61 @@
+2021-12-19 20:29:36,975 | Telemetry endpoint configured to be https://aws-serverless-tools-telemetry.us-west-2.amazonaws.com/metrics
+2021-12-19 20:29:36,976 | Using config file: samconfig.toml, config environment: default
+2021-12-19 20:29:36,976 | Expand command line arguments to:
+2021-12-19 20:29:36,976 | --template_file=C:\Larry\Projects\Development\Guardant\aws-parallelcluster-serverless-api\sam-app\template.yml --build_dir=.aws-sam\build --cache_dir=.aws-sam\cache 
+2021-12-19 20:29:37,242 | 'build' command is called
+2021-12-19 20:29:37,257 | No Parameters detected in the template
+2021-12-19 20:29:37,282 | 2 stacks found in the template
+2021-12-19 20:29:37,283 | No Parameters detected in the template
+2021-12-19 20:29:37,300 | 2 resources found in the stack 
+2021-12-19 20:29:37,300 | No Parameters detected in the template
+2021-12-19 20:29:37,316 | Found Serverless function with name='ParallelClusterFunction' and CodeUri='parallelcluster_function/'
+2021-12-19 20:29:37,316 | --base-dir is not presented, adjusting uri parallelcluster_function/ relative to C:\Larry\Projects\Development\Guardant\aws-parallelcluster-serverless-api\sam-app\template.yml
+2021-12-19 20:29:37,316 | No Parameters detected in the template
+2021-12-19 20:29:38,206 | Instantiating build definitions
+2021-12-19 20:29:38,208 | Same function build definition found, adding function (Previous: BuildDefinition(python3.6, C:\Larry\Projects\Development\Guardant\aws-parallelcluster-serverless-api\sam-app\parallelcluster_function, Zip, , 5fc1c249-bd40-488b-88c2-06bbb3ef55b2, {}, {}, x86_64, []), Current: BuildDefinition(python3.6, C:\Larry\Projects\Development\Guardant\aws-parallelcluster-serverless-api\sam-app\parallelcluster_function, Zip, , 2b740bdb-91bb-43cd-b6d0-e46616f5102e, {}, {}, x86_64, []), Function: Function(name='ParallelClusterFunction', functionname='ParallelClusterFunction', runtime='python3.6', memory=None, timeout=900, handler='function.lambda_handler', imageuri=None, packagetype='Zip', imageconfig=None, codeuri='C:\\Larry\\Projects\\Development\\Guardant\\aws-parallelcluster-serverless-api\\sam-app\\parallelcluster_function', environment=None, rolearn=None, layers=[], events={'pCluster': {'Type': 'Api', 'Properties': {'Path': '/pcluster', 'Method': 'any', 'RestApiId': 'ServerlessRestApi'}}}, metadata=None, inlinecode=None, codesign_config_arn=None, architectures=None, stack_path=''))
+2021-12-19 20:29:38,209 | Building codeuri: C:\Larry\Projects\Development\Guardant\aws-parallelcluster-serverless-api\sam-app\parallelcluster_function runtime: python3.6 metadata: {} architecture: x86_64 functions: ['ParallelClusterFunction']
+2021-12-19 20:29:38,209 | Building to following folder C:\Larry\Projects\Development\Guardant\aws-parallelcluster-serverless-api\sam-app\.aws-sam\build\ParallelClusterFunction
+2021-12-19 20:29:38,210 | Loading workflow module 'aws_lambda_builders.workflows'
+2021-12-19 20:29:38,218 | Registering workflow 'PythonPipBuilder' with capability 'Capability(language='python', dependency_manager='pip', application_framework=None)'
+2021-12-19 20:29:38,222 | Registering workflow 'NodejsNpmBuilder' with capability 'Capability(language='nodejs', dependency_manager='npm', application_framework=None)'
+2021-12-19 20:29:38,225 | Registering workflow 'RubyBundlerBuilder' with capability 'Capability(language='ruby', dependency_manager='bundler', application_framework=None)'
+2021-12-19 20:29:38,228 | Registering workflow 'GoDepBuilder' with capability 'Capability(language='go', dependency_manager='dep', application_framework=None)'
+2021-12-19 20:29:38,231 | Registering workflow 'GoModulesBuilder' with capability 'Capability(language='go', dependency_manager='modules', application_framework=None)'
+2021-12-19 20:29:38,237 | Registering workflow 'JavaGradleWorkflow' with capability 'Capability(language='java', dependency_manager='gradle', application_framework=None)'
+2021-12-19 20:29:38,240 | Registering workflow 'JavaMavenWorkflow' with capability 'Capability(language='java', dependency_manager='maven', application_framework=None)'
+2021-12-19 20:29:38,244 | Registering workflow 'DotnetCliPackageBuilder' with capability 'Capability(language='dotnet', dependency_manager='cli-package', application_framework=None)'
+2021-12-19 20:29:38,247 | Registering workflow 'CustomMakeBuilder' with capability 'Capability(language='provided', dependency_manager=None, application_framework=None)'
+2021-12-19 20:29:38,247 | Found workflow 'PythonPipBuilder' to support capabilities 'Capability(language='python', dependency_manager='pip', application_framework=None)'
+2021-12-19 20:29:38,624 | Running workflow 'PythonPipBuilder'
+2021-12-19 20:29:38,624 | Running PythonPipBuilder:ResolveDependencies
+2021-12-19 20:29:39,003 | calling pip download -r C:\Larry\Projects\Development\Guardant\aws-parallelcluster-serverless-api\sam-app\parallelcluster_function\requirements.txt --dest C:\Users\LARRY~1.HAL\AppData\Local\Temp\tmp2sk8ba7a --exists-action i
+2021-12-19 20:29:42,777 | Full dependency closure: {ipaddress==1.0.23(wheel), botocore==1.23.24(wheel), jmespath==0.10.0(wheel), six==1.16.0(wheel), markupsafe==2.0.1(wheel), python-dateutil==2.8.2(wheel), s3transfer==0.5.0(wheel), urllib3==1.26.7(wheel), pyyaml==6.0(wheel), aws-parallelcluster==2.11.3(wheel), setuptools==59.6.0(wheel), boto3==1.20.24(wheel), tabulate==0.8.9(wheel), jinja2==3.0.3(wheel)}
+2021-12-19 20:29:42,777 | initial compatible: {botocore==1.23.24(wheel), jmespath==0.10.0(wheel), six==1.16.0(wheel), s3transfer==0.5.0(wheel), python-dateutil==2.8.2(wheel), urllib3==1.26.7(wheel), jinja2==3.0.3(wheel), aws-parallelcluster==2.11.3(wheel), setuptools==59.6.0(wheel), boto3==1.20.24(wheel), tabulate==0.8.9(wheel), ipaddress==1.0.23(wheel)}
+2021-12-19 20:29:42,777 | initial incompatible: {markupsafe==2.0.1(wheel), pyyaml==6.0(wheel)}
+2021-12-19 20:29:42,777 | Downloading missing wheels: {markupsafe==2.0.1(wheel), pyyaml==6.0(wheel)}
+2021-12-19 20:29:42,777 | calling pip download --only-binary=:all: --no-deps --platform manylinux2014_x86_64 --implementation cp --abi cp36m --dest C:\Users\LARRY~1.HAL\AppData\Local\Temp\tmp2sk8ba7a markupsafe==2.0.1
+2021-12-19 20:29:43,996 | calling pip download --only-binary=:all: --no-deps --platform manylinux2014_x86_64 --implementation cp --abi cp36m --dest C:\Users\LARRY~1.HAL\AppData\Local\Temp\tmp2sk8ba7a pyyaml==6.0
+2021-12-19 20:29:45,241 | compatible wheels after second download pass: {ipaddress==1.0.23(wheel), botocore==1.23.24(wheel), jmespath==0.10.0(wheel), six==1.16.0(wheel), markupsafe==2.0.1(wheel), python-dateutil==2.8.2(wheel), s3transfer==0.5.0(wheel), urllib3==1.26.7(wheel), pyyaml==6.0(wheel), aws-parallelcluster==2.11.3(wheel), setuptools==59.6.0(wheel), boto3==1.20.24(wheel), tabulate==0.8.9(wheel), jinja2==3.0.3(wheel)}
+2021-12-19 20:29:45,241 | Build missing wheels from sdists (C compiling True): set()
+2021-12-19 20:29:45,241 | compatible after building wheels (no C compiling): {ipaddress==1.0.23(wheel), botocore==1.23.24(wheel), jmespath==0.10.0(wheel), six==1.16.0(wheel), markupsafe==2.0.1(wheel), python-dateutil==2.8.2(wheel), s3transfer==0.5.0(wheel), urllib3==1.26.7(wheel), pyyaml==6.0(wheel), aws-parallelcluster==2.11.3(wheel), setuptools==59.6.0(wheel), boto3==1.20.24(wheel), tabulate==0.8.9(wheel), jinja2==3.0.3(wheel)}
+2021-12-19 20:29:45,241 | Build missing wheels from sdists (C compiling False): set()
+2021-12-19 20:29:45,241 | compatible after building wheels (C compiling): {ipaddress==1.0.23(wheel), botocore==1.23.24(wheel), jmespath==0.10.0(wheel), six==1.16.0(wheel), markupsafe==2.0.1(wheel), python-dateutil==2.8.2(wheel), s3transfer==0.5.0(wheel), urllib3==1.26.7(wheel), pyyaml==6.0(wheel), aws-parallelcluster==2.11.3(wheel), setuptools==59.6.0(wheel), boto3==1.20.24(wheel), tabulate==0.8.9(wheel), jinja2==3.0.3(wheel)}
+2021-12-19 20:29:45,241 | Final compatible: {ipaddress==1.0.23(wheel), botocore==1.23.24(wheel), jmespath==0.10.0(wheel), six==1.16.0(wheel), markupsafe==2.0.1(wheel), python-dateutil==2.8.2(wheel), s3transfer==0.5.0(wheel), urllib3==1.26.7(wheel), pyyaml==6.0(wheel), aws-parallelcluster==2.11.3(wheel), setuptools==59.6.0(wheel), boto3==1.20.24(wheel), tabulate==0.8.9(wheel), jinja2==3.0.3(wheel)}
+2021-12-19 20:29:45,241 | Final incompatible: {markupsafe==2.0.1(wheel), pyyaml==6.0(wheel)}
+2021-12-19 20:29:45,242 | Final missing wheels: set()
+2021-12-19 20:29:46,718 | PythonPipBuilder:ResolveDependencies succeeded
+2021-12-19 20:29:46,718 | Running PythonPipBuilder:CopySource
+2021-12-19 20:29:46,723 | PythonPipBuilder:CopySource succeeded
+
+Build Succeeded
+
+Built Artifacts  : .aws-sam\build
+Built Template   : .aws-sam\build\template.yaml
+
+Commands you can use next
+=========================
+[*] Invoke Function: sam local invoke
+[*] Deploy: sam deploy --guided
+        
+2021-12-19 20:29:46,738 | Sending Telemetry: {'metrics': [{'commandRun': {'requestId': '414a5062-d960-48d8-b10d-11b878c1274e', 'installationId': 'd1d3435d-126c-4bf6-8410-c6b51b5b6d87', 'sessionId': '0dc5fdf9-6b5f-430b-9e94-b5f778b2f6cc', 'executionEnvironment': 'CLI', 'ci': False, 'pyversion': '3.8.8', 'samcliVersion': '1.35.0', 'awsProfileProvided': False, 'debugFlagProvided': True, 'region': '', 'commandName': 'sam build', 'duration': 9762, 'exitReason': 'success', 'exitCode': 0}}]}
+2021-12-19 20:29:47,002 | Telemetry response: 200

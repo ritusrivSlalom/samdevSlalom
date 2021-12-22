@@ -1,0 +1,10 @@
+[console_scripts]
+awsbhosts = awsbatch.awsbhosts:main
+awsbkill = awsbatch.awsbkill:main
+awsbout = awsbatch.awsbout:main
+awsbqueues = awsbatch.awsbqueues:main
+awsbstat = awsbatch.awsbstat:main
+awsbsub = awsbatch.awsbsub:main
+pcluster = pcluster.cli:main
+pcluster-config = pcluster_config.cli:main
+
