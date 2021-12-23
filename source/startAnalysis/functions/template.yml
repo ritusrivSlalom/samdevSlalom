@@ -14,7 +14,17 @@ Resources:
       CodeUri: ParallelCluster/
       Handler: create_cluster.lambda_handler
       Runtime: python3.6
+      Timeout: 300  
+      VpcConfig:
+        SubnetIds: 
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id1:1}}'
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/public_subnet_id2:1}}'
+        SecurityGroupIds:
+          - !Sub '{{resolve:ssm:/gh-bip/${AWS::Region}/default_securitygroupid:1}}'
+
       Policies:
+      - SecretsManagerReadWrite
+      - AmazonSSMFullAccess
       - Statement:
         - Sid: EC2Describe
           Effect: Allow
@@ -136,11 +146,6 @@ Resources:
           Action:
           - elasticfilesystem:DescribeMountTargets
           - elasticfilesystem:DescribeMountTargetSecurityGroups
-          Resource: '*'
-        - Sid: SSMDescribe
-          Effect: Allow
-          Action:
-          - ssm:GetParametersByPath
           Resource: '*'  
         - Sid: FSx
           Effect: Allow

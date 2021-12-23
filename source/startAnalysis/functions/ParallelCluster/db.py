@@ -15,6 +15,8 @@ region_name = os.environ['AWS_REGION']
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+singleton_db_connection = boto3.NullHandler
+
 def getAccountID():
     client = boto3.client('sts')
     response = client.get_caller_identity()['Account']
@@ -45,7 +47,7 @@ def get_parameter(name):
     return parameter['Parameter']['Value']
 
 
-def getDBCredentails():
+def getDBCredentials():
     logger.info("Getting DB parameters...")
     db_endpoint = get_parameter("/gh-bip/" + region_name + "/db_endpoint")
     db_user = get_parameter("/gh-bip/" + region_name + "/db_username")
@@ -67,19 +69,21 @@ def getDBCredentails():
 
 
 def getDBConnection():
-    print("Getting DB connection")
-    db_endpoint, db_user, db_password = getDBCredentails()
-    try:
-        conn = psycopg2.connect(host=db_endpoint, port=5432, dbname='bipanalysisdb', user=db_user,
-                                password=db_password)
-        # conn = psycopg2.connect(host='localhost', port=5432, dbname='test')
-        conn.autocommit = True
-        logger.debug("DB connected ")
-    except Exception as err:
-        logger.error(f"Unable to connnct the database. Exception {err}")
-        sys.exit(1)
+    global singleton_db_connection
 
-    return conn
+    if ( not singleton_db_connection or singleton_db_connection == boto3.NullHandler):
+        print("Getting DB connection")
+        db_endpoint, db_user, db_password = getDBCredentials()
+        try:
+            singleton_db_connection = psycopg2.connect(host=db_endpoint, port=5432, dbname='bipanalysisdb', user=db_user,
+                                    password=db_password)
+            singleton_db_connection.autocommit = True
+            logger.debug("DB connected ")
+        except Exception as err:
+            logger.error(f"Unable to connnct the database. Exception {err}")
+            sys.exit(1)
+
+    return singleton_db_connection
 
 
 def check_existing_flowcellid(dbConnection, ID):

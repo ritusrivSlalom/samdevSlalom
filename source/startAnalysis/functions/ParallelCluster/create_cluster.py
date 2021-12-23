@@ -1,3 +1,4 @@
+# Lambda to facilitate creation of a parallel cluster
 import json
 import sys
 import boto3
@@ -12,6 +13,7 @@ import pcluster.cli as cli
 from io import StringIO
 import imp
 import db
+import config
 
 DEBUG = True
 
@@ -32,9 +34,64 @@ if (plt == "Windows" or os.name == 'nt'):
 import psycopg2
 
 region = os.environ['AWS_REGION']
+DEV_acct = "023839011004"
+PROD_acct = "063935053328"
 
+def getAccountID():
+    # TODO: Fix this
+    # client = boto3.client("sts", region_name=os.environ['AWS_REGION'])
+    # try:
+    #     account_id = client.get_caller_identity()["Account"]
+    # except Exception as err:
+    #     print(f"Unable to get Account ID. Exception: {err}")
+    #     sys.exit(1)
+    account_id = DEV_acct
+    return account_id
 
-# Lambda to facilitate creation of a parallel cluster
+def publish_message(error_msg):
+    snsclient = boto3.client('sns')
+    lambda_func_name = os.environ['AWS_LAMBDA_FUNCTION_NAME']
+    try:
+        message = ""
+        message += "\nLambda error  summary" + "\n\n"
+        message += "##########################################################\n"
+        message += "# LogGroup Name:- " + os.environ['AWS_LAMBDA_LOG_GROUP_NAME'] + "\n"
+        message += "# LogStream:- " + os.environ['AWS_LAMBDA_LOG_STREAM_NAME'] + "\n"
+        message += "# Log Message:- " + "\n"
+        message += "# \t\t" + str(error_msg.split("\n")) + "\n"
+        message += "##########################################################\n"
+        accntid=getAccountID()
+        # Sending the notification...
+        snsclient.publish(
+            TargetArn="arn:aws:sns:" + region + ":" + accntid + ":gh-bip-notify",
+            Subject=f'Execution error for Lambda - {lambda_func_name[3]}',
+            Message=message
+        )
+    except Exception as e:
+        print(f"Unable to publish message. Exception: {e}")
+     
+def get_analyses_candidates():
+  dbConnection = db.getDBConnection()
+  try:
+      cur = dbConnection.cursor()
+      
+      # execution_id             | cluster_id |   status   | product_name | scheduler_name | bip_version |run_id              |                      output_dir_name                       | bip_image_name |       creation_time  | update_time
+      completed_status = "COMPLETED"
+      cancel_status = "CANCELED"
+      processing_status = "PROCESSING"
+      readQuery = """SELECT execution_id, cluster_id, status, product_name, scheduler_name, bip_version, run_id, output_dir_name, bip_image_name, creation_time, update_time FROM gh_analysis_job_execution ORDER BY "cluster_id" DESC"""
+      # readQuery = """SELECT execution_id, cluster_id, status, product_name, scheduler_name, bip_version, run_id, output_dir_name, bip_image_name, creation_time, update_time FROM gh_analysis_job_execution WHERE UPPER(status) NOT IN (%s, %s, %s) ORDER BY "cluster_id" DESC"""
+      # cur.execute(readQuery, [processing_status, completed_status, cancel_status])
+      cur.execute(readQuery)
+      rows = cur.fetchall()
+      print("The number of analyses_candidate rows returned: ", cur.rowcount)
+      print(rows)
+  except Exception as err:
+      print(f"Unable to obtain analyses_candidates from the database. Exception: {err}")
+      publish_message("Unable to read the data from the database. Exception: "+str(err))
+      sys.exit(1)
+  return rows
+
 """
 What needs to be checked/developed?
 
@@ -50,12 +107,13 @@ Check and report PllCluster status
 """
 def lambda_handler(event, context):
     #command to execute with ParallelCluster
-    product_name = "g360"
-    scheduler_name = "sge"
+    # product_name = "g360"
+    # scheduler_name = "sge"
+    config_body = None
 
-    print(event)
     if ( DEBUG ):
-      print("PATH" + str(sys.path))
+      # print(event)
+      # print("PATH" + str(sys.path))
       # print(os.listdir("/opt/python/lib/python3.6/site-packages"))  <- ERRNO 2
       print("----------------")
       # print(os.listdir("/var/lang/lib/python3.6/site-packages"))
@@ -77,9 +135,7 @@ def lambda_handler(event, context):
           found = False
           print("can't find import module pcluster")
           exit(1)
-
-      
-      # END DEBUG
+    # END DEBUG
     command = event["queryStringParameters"]["command"]
     #the cluster name
     cluster_name = ""
@@ -93,36 +149,68 @@ def lambda_handler(event, context):
     except:
       print("missing execution ID - try again")
       exit(0)
+    
+    # If request has a Base64-encoded body, then use it over Param Store config
+    try:
+      config_body = event['body'] # TODO: Check to ensure it's been Base64 encoded
+    except:
+      config_body = None
+    #
+    # START DB escapades
+    #
+    print("Finding candidates...")
+    candidates = get_analyses_candidates()
+    #
+    # END DB escapades
+    #
+    # NOTE: run_id == flow_cell_run_id (not a job run id)
+    execution_candidate = None  
+    for (execution_id, cluster_id, status, product_name, scheduler_name, bip_version, run_id, output_dir_name, bip_image_name, creation_time, update_time) in candidates:
+        print ("IN_PROGRESS:", execution_id, cluster_id, status, product_name, scheduler_name, bip_version, run_id, output_dir_name, bip_image_name, creation_time, update_time)
+        if ( status == config.PROCESSING ):
+          execution_candidate = (product_name, scheduler_name, run_id, output_dir_name, bip_image_name)  # Just grab last one for now
 
+    print(f"Creating pll cluster for exec_id{execution_id}: /gh-bip/{region}/GH_analysis/{product_name}/{scheduler_name}/pcconfig")
     # Retrieve pcluster configuration file and its capacity
     try:
-        if ( DEBUG != False):
+        if ( config_body == None):  # If config info not supplied by requester (Postman, etc)
           pllcluster_config = f"/gh-bip/{region}/GH_analysis/{product_name}/{scheduler_name}/pcconfig"
+          print(f"Getting pllconfig params from {pllcluster_config}")
           file_content = db.get_parameter(pllcluster_config)
         else:
-          file_content = base64.b64decode(event['body'])
+          file_content = base64.b64decode(config_body)
         path_config = '/tmp/config'
         config_file = open(path_config,'w')
         config_file.write(file_content.decode('utf-8'))
         config_file.close()
         pllcluster_capacity = f"/gh-bip/{region}/GH_analysis/{product_name}/capacity"
+        pllcluster_capacity = db.get_parameter(pllcluster_capacity)
+        print(f"Capacity:{pllcluster_capacity},\nConfig Info:\n{file_content}")
     except:
         return {
            'statusCode': 200,
-           'body': 'Please specify the pcluster configuration file\n'
+           'body': 'Please specify the pcluster configuration body and capacity\n'
         }
     os.environ['HOME'] = '/tmp'
     sys.argv = ["pcluster"]
     sys.argv.append(command)
     
     #append the additional parameters
-    print(event["headers"])
+    # print(event["headers"])
     try:
       additional_parameters = event["headers"]["additional_parameters"]
       add_params = additional_parameters.split()
       sys.argv = sys.argv + add_params
     except:
       print("no_params")
+
+    if (DEBUG):
+      print("Exiting for now.")
+      return {
+          'statusCode': 200,
+          'body': 'Exiting just before actual PllCluster creation\n'
+      }
+    
     sys.argv.append('--config')
     sys.argv.append('/tmp/config')
     if command in ['create', 'delete', 'update', 'start', 'stop', 'status']:
