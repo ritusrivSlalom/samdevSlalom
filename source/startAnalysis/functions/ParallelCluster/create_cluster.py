@@ -92,6 +92,23 @@ def get_analyses_candidates():
       sys.exit(1)
   return rows
 
+# TODO: These are hardcoded DEV environ params - add dynamics
+# NOTE: Do NOT chain together the replace's, otherwise you'll be sorry (Time wasted: 1hr)
+def replace_tokens(config_info, region, run_id, vpc_id = "vpc-026a0da3cc0a3b2bd", 
+  private_subnet = "subnet-0625e61c2ae4243ff", vpc_sg_id = "sg-05adef62d9a0283c5"):
+  region_token = "__REGION__"
+  vpc_id_token = "__VPC__"
+  private_subnet_token = "__PRV_SN_ID__"
+  vpc_sg_id_token = "__SG_ID__"
+  run_id_token = "__RUN_ID__"
+  cfg_info = config_info.replace("__REGION__", region)
+  cfg_info = cfg_info.replace(vpc_id_token, vpc_id)
+  cfg_info = cfg_info.replace(private_subnet_token, private_subnet)
+  cfg_info = cfg_info.replace(vpc_sg_id_token, vpc_sg_id)
+  cfg_info = cfg_info.replace(run_id_token, run_id)
+  # print(f"Replaced content={cfg_info}")
+  return cfg_info
+
 """
 What needs to be checked/developed?
 
@@ -145,10 +162,12 @@ def lambda_handler(event, context):
       cluster_name = "Generic_cluster"
     
     try:
-      cluster_name = event["queryStringParameters"]["execution_id"]
+      exec_id = event["queryStringParameters"]["execution_id"]
     except:
-      print("missing execution ID - try again")
-      exit(0)
+      return {
+           'statusCode': 200,
+           'body': 'missing execution ID - try again'
+        }
     
     # If request has a Base64-encoded body, then use it over Param Store config
     try:
@@ -179,14 +198,19 @@ def lambda_handler(event, context):
           file_content = db.get_parameter(pllcluster_config)
         else:
           file_content = base64.b64decode(config_body)
-        path_config = '/tmp/config'
-        config_file = open(path_config,'w')
-        config_file.write(file_content.decode('utf-8'))
-        config_file.close()
         pllcluster_capacity = f"/gh-bip/{region}/GH_analysis/{product_name}/capacity"
         pllcluster_capacity = db.get_parameter(pllcluster_capacity)
+        # TODO: Split off file operations in separate try block
+        path_config = '/tmp/config'
+        config_file = open(path_config,'w')
+        if ( config_body != None):
+          file_content = file_content.decode('utf-8')
+        file_content = replace_tokens(file_content, region, run_id )
+        config_file.write(file_content)
+        config_file.close()
         print(f"Capacity:{pllcluster_capacity},\nConfig Info:\n{file_content}")
-    except:
+    except Exception as err:
+        print(f"Unable to get capacity and/or cluster config info. Exception: {err}")
         return {
            'statusCode': 200,
            'body': 'Please specify the pcluster configuration body and capacity\n'
@@ -204,13 +228,14 @@ def lambda_handler(event, context):
     except:
       print("no_params")
 
+    """
     if (DEBUG):
       print("Exiting for now.")
       return {
           'statusCode': 200,
           'body': 'Exiting just before actual PllCluster creation\n'
       }
-    
+    """
     sys.argv.append('--config')
     sys.argv.append('/tmp/config')
     if command in ['create', 'delete', 'update', 'start', 'stop', 'status']:
@@ -224,9 +249,8 @@ def lambda_handler(event, context):
       stdout = io.StringIO()
       stderr = io.StringIO()
       # NOTE: Remove this DEBUG conditional when DB & Param Stores working
-      if ( DEBUG == False): # This step alrdy validated
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-          cli.main()  # ERR+ "module 'pcluster.cli' has no attribute 'main': AttributeError" if pcluster > 2.11.3 (backwards incompatibility)
+      with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        cli.main()  # ERR+ "module 'pcluster.cli' has no attribute 'main': AttributeError" if pcluster > 2.11.3 (backwards incompatibility)
       pllcluster_info = f"PllCluster Capacity: {pllcluster_capacity}\nPllCLusterCfg=\n{file_content}"
       print(pllcluster_info)
       print("stdout:\n{}".format(stdout.getvalue()))
